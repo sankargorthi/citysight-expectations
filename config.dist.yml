@@ -3,4 +3,3 @@ devdenver:
   password: password-here
   server: ip-here
   db: db-here
-  tableprefix: CITY_
