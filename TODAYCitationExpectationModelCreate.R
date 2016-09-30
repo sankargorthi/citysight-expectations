@@ -1,49 +1,64 @@
-if (!require('RODBC')) {
-  install.packages('RODBC', repos="http://cran.rstudio.com/")
-}
-if (!require('randomForest')) {
-  install.packages('randomForest', repos="http://cran.rstudio.com/")
-}
-if (!require('prodlim')) {
-  install.packages('prodlim', repos="http://cran.rstudio.com/")
-}
-if (!require('yaml')) {
-  install.packages('yaml', repos="http://cran.rstudio.com/")
-}
-if (!require('devtools')) {
-  install.packages('devtools', repos="http://cran.rstudio.com/")
-}
-if (!require('futile.logger')) {
-  install.packages('futile.logger', repos="http://cran.rstudio.com/")
+# AB: util functions
+isInstalled <- function(package) {
+  is.element(package, installed.packages()[,1])
 }
 
+LoadOrInstallLibraries <- function(packages) {
+  for(package in packages) {
+    if(!isInstalled(package)) {
+      install.packages(package,repos="http://cran.rstudio.com/")
+    }
+    require(package,character.only=TRUE,quietly=TRUE)
+  }
+}
+GetDBHandle <- function (ct) {
+  drv <- JDBC("com.microsoft.sqlserver.jdbc.SQLServerDriver", "/opt/citysight-expectations/sqljdbc/enu/sqljdbc4.jar")
+  connector <- paste("jdbc:sqlserver://", ct$server, sep="")
+  conn <- dbConnect(drv, connector, ct$uid, ct$pwd)
+
+  return(conn)
+}
+
+BuildConfig <- function (config, city) {
+  ct <- config[[city]]
+
+  server <- ct$server
+  uid <- ct$username
+  pwd <- ct$password
+  db <- ct$db
+
+  return(list("server" = server, "uid" = uid, "pwd" = pwd, "db" = db))
+}
+
+LoadOrInstallLibraries(c("RJDBC", "randomForest", "prodlim", "yaml", "devtools", "futile.logger"))
 install_github("ozagordi/weatherData")
 library(weatherData)
-#library('yaml')
-
-#config <- yaml.load_file("ienforce-config.yml")
-
-flog.appender(appender.file('expectations.log'), 'quiet')
-
 options(max.print=5)
-## Connect to the database
-flog.info("Generating expectations for %s", "DEVDENVER", name='quiet')
-dbhandle <- odbcDriverConnect('driver={SQL Server};server=localhost;database=DEVDENVER;uid=sa;pwd=password;trusted_connection=true')
 
+flog.appender(appender.file("/tmp/expectations.log"), "quiet")
+city <- "devdenver"
+config <- BuildConfig(yaml.load_file("/opt/citysight-expectations/config.yml"), city)
+
+## Connect to the database
+flog.info("Generating expectations for %s", city, name="quiet")
+dbhandle <- GetDBHandle(config)
 
 # Query database to get features and combine into one frame
 
-ticketcount <- sqlQuery(dbhandle,
-                        "SELECT BADGENUMBER, OFFICERNAME, ISSUEDATE, BEATNAME, count(*) AS TICKETCOUNT FROM (SELECT I.BADGENUMBER,I.OFFICERNAME,CAST(I.ISSUEDATETIME AS DATE) AS ISSUEDATE, C.GPSBEAT AS BEATNAME
-                          FROM ISSUANCE I JOIN CORRECTEDBEATS C ON I.TICKETNUMBER = C.TICKETNUMBER) A
-                        GROUP BY BADGENUMBER, OFFICERNAME, ISSUEDATE, BEATNAME")
+officersQuery <- paste("SELECT BADGENUMBER, OFFICERNAME, ISSUEDATE, BEATNAME, count(*) AS TICKETCOUNT FROM
+    (SELECT I.BADGENUMBER,I.OFFICERNAME,CAST(I.ISSUEDATETIME AS DATE) AS ISSUEDATE,
+      C.GPSBEAT AS BEATNAME FROM ", config$db, ".dbo.ISSUANCE I
+      JOIN ", config$db, ".dbo.CORRECTEDBEATS C ON I.TICKETNUMBER = C.TICKETNUMBER) A
+      GROUP BY BADGENUMBER, OFFICERNAME, ISSUEDATE, BEATNAME", sep="")
+
+ticketcount <- dbGetQuery(dbhandle, officersQuery)
 ticketcount$ISSUEDATE <- as.Date(ticketcount$ISSUEDATE)
 
-oms_session_feats <- sqlQuery(dbhandle,
-                              "SELECT O.OFFICERID AS BADGENUMBER, O.OFFICERNAME, CAST(O.DATETIME AS DATE) AS DATEBEAT, O.RECID AS SESSIONID,
-                              O.DATETIME, O.DATETIME2, D.TOTALLENGTH AS SESSIONLENGTH,
-                              D.PATROLLENGTH, D.SERVICELENGTH, D.OTHERLENGTH
-                              FROM OMS_SESSION O JOIN DutyStatusFeats D on O.RECID = D.SESSIONID")
+featuresQuery = paste("SELECT O.OFFICERID AS BADGENUMBER, O.OFFICERNAME, CAST(O.DATETIME AS DATE) AS DATEBEAT, O.RECID AS SESSIONID,
+    O.DATETIME, O.DATETIME2, D.TOTALLENGTH AS SESSIONLENGTH,
+    D.PATROLLENGTH, D.SERVICELENGTH, D.OTHERLENGTH
+    FROM ", config$db, ".dbo.OMS_SESSION O JOIN ", config$db, ".dbo.DutyStatusFeats D on O.RECID = D.SESSIONID", sep="")
+oms_session_feats <- dbGetQuery(dbhandle, featuresQuery)
 oms_session_feats$DATEBEAT <- as.Date(oms_session_feats$DATEBEAT)
 
 weather_feats1 <- getSummarizedWeather("DEN", "2014-01-01", end_date = "2014-12-31", station_type = "airportCode", opt_all_columns = TRUE)
@@ -152,7 +167,7 @@ weather_feats$Max_VisibilityMiles[is.na(weather_feats$Min_VisibilityMiles)] <- -
 weather_feats$Mean_VisibilityMiles[is.na(weather_feats$Min_VisibilityMiles)] <- -1
 
 print(nrow(combined_feats_GT))
-flog.info("Found %d features", nrow(combined_feats_GT), name='quiet')
+flog.info("Found %d features", nrow(combined_feats_GT), name="quiet")
 
 # Remove incomplete cases from both data frames
 do.call(data.frame,lapply(combined_feats_GT, function(x) replace(x, is.infinite(x),NA)))
@@ -166,16 +181,19 @@ citExpAllDays <- data.frame(date=as.Date(character()),
                             reason=character(),
                             stringsAsFactors=FALSE)
 combined_feats_GT_test <- combined_feats_GT[combined_feats_GT$DATEBEAT == (Sys.Date() - 1),]
-flog.info("Found %d test features", nrow(combined_feats_GT_test), name='quiet')
+
+# Debugging output
+flog.info("Found %d test features", nrow(combined_feats_GT_test), name="quiet")
 print(nrow(combined_feats_GT_test))
-flog.info("Found %d updated features", nrow(combined_feats_GT), name='quiet')
+flog.info("Found %d updated features", nrow(combined_feats_GT), name="quiet")
 print(nrow(combined_feats_GT))
-for ( i in 1:nrow(combined_feats_GT_test)){
-flog.info(paste("Generating expectation", i, "for", combined_feats_GT_test$DATEBEAT[i]), name='quiet')
-print(combined_feats_GT_test$DATEBEAT[i])
-flog.info(paste("Generating expectations against", (Sys.Date() - 1)), name='quiet')
-print((Sys.Date() - 1))
-  if(combined_feats_GT_test$DATEBEAT[i] == (Sys.Date() - 1)){
+
+for ( i in 1:nrow(combined_feats_GT_test) ) {
+  flog.info(paste("Generating expectation", i, "for", combined_feats_GT_test$DATEBEAT[i]), name="quiet")
+  print(combined_feats_GT_test$DATEBEAT[i])
+  flog.info(paste("Generating expectations against", (Sys.Date() - 1)), name="quiet")
+  print((Sys.Date() - 1))
+  if (combined_feats_GT_test$DATEBEAT[i] == (Sys.Date() - 1)) {
     date <- as.character(as.Date(combined_feats_GT_test$DATEBEAT[i]))
     beat <- as.character(combined_feats_GT_test$BEATNAME[i])
     traintest <- combined_feats_GT[combined_feats_GT$DATEBEAT <= combined_feats_GT_test$DATEBEAT[i] & combined_feats_GT$BEATTYPE == combined_feats_GT_test$BEATTYPE[i],]
@@ -190,12 +208,11 @@ print((Sys.Date() - 1))
       reason <- "Insufficient Data"
       newrow <-  data.frame(date=date,beat=beat,exp=exp,reason=reason)
       citExpAllDays <- rbind(citExpAllDays, newrow)
-    }
-    else{
+    } else {
       rf <- randomForest(TICKETCOUNT ~ ., data=train, ntree=20, importance=TRUE)
       exp <- as.numeric(predict(rf, test))
       citReasonframe <-as.data.frame(cbind(as.data.frame(importance(rf)),rownames(importance(rf))))
-      names(citReasonframe) <- c('percentMSE', 'percentNodePurity', 'feature')
+      names(citReasonframe) <- c("percentMSE", "percentNodePurity", "feature")
       reason <- "Feature,percentMSE,percentNodePurity,ActualValue"
       for( j in 1:nrow(citReasonframe)){
         reason <- paste(reason,";",citReasonframe$feature[j],":",citReasonframe$percentMSE[j],":"
@@ -226,7 +243,7 @@ combined_feats_GT$isWeekend <- as.character(combined_feats_GT$isWeekend)
 combined_feats_GT$BEATTYPE <- as.character(combined_feats_GT$BEATTYPE)
 
 #sqlSave(channel=dbhandle, dat=citExpAllDaystest, tablename="CITATIONPREDICTION", append=TRUE, rownames=FALSE)
-flog.info("Writing today's expectations CSV to file", name='quiet')
-write.table(citExpAllDaystest,file="D:\\citysightanalytics\\expectations\\citExpToday.csv", row.names=FALSE, col.names=FALSE, sep=",", quote=FALSE)
-flog.info("Writing combined features CSV to file", name='quiet')
-write.table(combined_feats_GT,file="D:\\citysightanalytics\\expectations\\combined_feats_GT.csv", row.names=FALSE, col.names=FALSE, sep=",", quote=FALSE)
+flog.info("Writing today's expectations CSV to file", name="quiet")
+write.table(citExpAllDaystest,file="citExpToday.csv", row.names=FALSE, col.names=FALSE, sep=",", quote=FALSE)
+flog.info("Writing combined features CSV to file", name="quiet")
+write.table(combined_feats_GT,file="combined_feats_GT.csv", row.names=FALSE, col.names=FALSE, sep=",", quote=FALSE)
