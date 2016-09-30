@@ -1,7 +1,7 @@
 # Expectations
 These scripts are used to generate Citation expectations for cities
 
-They are driven off of the `writeconfig.yml` file located at the root folder.
+They are driven off of the `config.yml` file located at the root folder.
 
 ## Workflow
 - These scripts run on cron jobs setup on citysight DB boxes.
@@ -12,15 +12,15 @@ They are driven off of the `writeconfig.yml` file located at the root folder.
 ## Setup
 
 ```bash
-PS> copy config.dist.yml writeconfig.yml
+PS> copy config.dist.yml config.yml
 ```
 Specify the city's DB credentials following the examples given.
 
 ## Usage
 
 ```bash
-PS> .\expectations\Daily.bat
+PS> .\expectations\Daily.sh
 ```
 
 # License
-(c) PARC 2016. All Rights Reserved.
+© PARC 2016. All Rights Reserved.

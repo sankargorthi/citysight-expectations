@@ -1,0 +1,6 @@
+devdenver:
+  username: sa
+  password: password-here
+  server: ip-here
+  db: db-here
+  tableprefix: CITY_
