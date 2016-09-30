@@ -179,13 +179,14 @@ print((Sys.Date() - 1))
     } else {
       rf <- randomForest(MARKCOUNT ~ ., data=train, ntree=20, importance=TRUE)
       exp <- as.numeric(predict(rf, test))
-      citReasonframe <-as.data.frame(cbind(as.data.frame(importance(rf)),rownames(importance(rf))))
+      citReasonframe <- as.data.frame(cbind(as.data.frame(importance(rf)),rownames(importance(rf))))
       names(citReasonframe) <- c('percentMSE', 'percentNodePurity', 'feature')
       reason <- "Feature,percentMSE,percentNodePurity,ActualValue"
-      for( j in 1:nrow(citReasonframe)){
+      for(j in 1:nrow(citReasonframe)) {
         reason <- paste(reason,";",citReasonframe$feature[j],":",citReasonframe$percentMSE[j],":"
-                           ,citReasonframe$percentNodePurity[j],":",
-                           combined_feats_GT[i,grep(paste("^",citReasonframe$feature[j],"$",sep=""), names(combined_feats_GT))],sep="")
+            ,citReasonframe$percentNodePurity[j],":",
+            combined_feats_GT[i,grep(paste("^",citReasonframe$feature[j],"$",sep=""),
+            names(combined_feats_GT))],sep="")
       }
 
       newrow <- data.frame(date=date,beat=beat,exp=exp,reason=reason)
@@ -212,5 +213,7 @@ combined_feats_GT$BEATTYPE <- as.character(combined_feats_GT$BEATTYPE)
 
 #sqlSave(channel=dbhandle, dat=citExpAllDaystest, tablename="MARKPREDICTION", append=TRUE, rownames=FALSE)
 
-write.table(citExpAllDaystest,file="D:\\citysightanalytics\\expectations\\markExpToday.csv", row.names=FALSE, col.names=FALSE, sep=",", quote=FALSE)
-write.table(combined_feats_GT,file="D:\\citysightanalytics\\expectations\\combined_feats_GT_mark.csv", row.names=FALSE, col.names=FALSE, sep=",", quote=FALSE)
+write.table(citExpAllDaystest, file="/opt/citysight-expectations/markExpToday.csv",
+    row.names=FALSE, col.names=FALSE, sep=",", quote=FALSE)
+write.table(combined_feats_GT, file="/opt/citysight-expectations/combined_feats_GT_mark.csv",
+    row.names=FALSE, col.names=FALSE, sep=",", quote=FALSE)

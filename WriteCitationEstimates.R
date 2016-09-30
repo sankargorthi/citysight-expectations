@@ -12,36 +12,55 @@ LoadOrInstallLibraries <- function(packages) {
   }
 }
 
-LoadOrInstallLibraries(c("argparser", "RODBC", "futile.logger", "yaml"))
-flog.appender(appender.file("expectations.log"), "quiet")
+GetDBHandle <- function (ct) {
+  drv <- JDBC("com.microsoft.sqlserver.jdbc.SQLServerDriver",
+  "/opt/citysight-expectations/sqljdbc/enu/sqljdbc4.jar")
+  connector <- paste("jdbc:sqlserver://", ct$server, sep="")
+  conn <- dbConnect(drv, connector, ct$uid, ct$pwd)
 
-GetDBHandle <- function(city) {
-  config <- yaml.load_file("D:/citysightanalytics/writeconfig.yml")
-  ct <- config[[city]]
-  connectionString <- paste("driver={SQL Server};server=", ct$server, ";database=", ct$db, ";uid=", ct$username,
-      ";pwd=", ct$password, ";trusted_connection=true", sep="")
-  flog.info("Writing estimate data for %s", city, name="quiet");
-  dbhandle <- odbcDriverConnect(connectionString)
-  return(dbhandle)
+  return(conn)
 }
 
+BuildConfig <- function (config, city) {
+  ct <- config[[city]]
+
+  server <- ct$server
+  uid <- ct$username
+  pwd <- ct$password
+  db <- ct$db
+
+  return(list("server" = server, "uid" = uid, "pwd" = pwd, "db" = db))
+}
+
+LoadOrInstallLibraries(c("argparser", "RJDBC", "futile.logger", "yaml"))
+flog.appender(appender.file("/tmp/estimates.log"), "quiet")
 
 # AB: parse arguments
-parser <- arg_parser("Write Citation Expectations Estimates")
-parser <- add_argument(parser, "city", help="label in writeconfig.yml for DB credentials")
+parser <- arg_parser("Write Citation Estimates")
+parser <- add_argument(parser, "city", help="label in config.yml for DB credentials")
 
 args <- parse_args(parser, commandArgs(trailingOnly=TRUE))
 
-dbhandle <- GetDBHandle(args$city)
+city <- args$city
+config <- BuildConfig(yaml.load_file("/opt/citysight-expectations/config.yml"), city)
+
+## Connect to the database
+flog.info("Generating mark expectations for %s", city, name="quiet")
+dbhandle <- GetDBHandle(config)
 
 flog.info("Deleting estimates for yesterday", name="quiet")
 sqlQuery(dbhandle,paste("DELETE FROM CITATIONESTIMATES WHERE DATE=\'",(Sys.Date() - 1),"\'", sep=""))
 
 flog.info("Bulk inserting estimates", name="quiet")
-sqlQuery(dbhandle,"BULK INSERT CITATIONESTIMATES FROM 'D:\\citysightanalytics\\expectations\\citExpEstimatesToday.csv' WITH (FIELDTERMINATOR = ',', ROWTERMINATOR = '0x0a')")
+sqlQuery(dbhandle, paste("BULK INSERT ", config$db, ".dbo.CITATIONESTIMATES FROM
+  '/opt/citysight-expectations/citExpEstimatesToday.csv'
+  WITH (FIELDTERMINATOR = ',', ROWTERMINATOR = '0x0a')", sep=""))
 
-sqlQuery(dbhandle,"IF OBJECT_ID('CITATIONESTIMATESCONVERTED', 'U') IS NOT NULL DROP TABLE CITATIONESTIMATESCONVERTED")
+sqlQuery(dbhandle, paste("IF OBJECT_ID('CITATIONESTIMATESCONVERTED', 'U') IS NOT NULL DROP TABLE",
+    config$db, ".dbo.CITATIONESTIMATESCONVERTED", sep=""))
 
-sqlQuery(dbhandle,"SELECT * INTO CITATIONESTIMATESCONVERTED FROM CITATIONESTIMATES")
+sqlQuery(dbhandle, paste("SELECT * INTO ", config$db, ".dbo.CITATIONESTIMATESCONVERTED FROM ",
+    config$db, ".dbo.CITATIONESTIMATES", sep=""))
 
-sqlQuery(dbhandle,"ALTER TABLE CITATIONESTIMATESCONVERTED ALTER COLUMN DATE date")
+sqlQuery(dbhandle, paste("ALTER TABLE ", config$db,
+    ".dbo.CITATIONESTIMATESCONVERTED ALTER COLUMN DATE date", sep=""))
