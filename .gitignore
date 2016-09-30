@@ -1,5 +1,4 @@
 config.yml
-writeconfig.yml
 *.csv
 
 ### R template
