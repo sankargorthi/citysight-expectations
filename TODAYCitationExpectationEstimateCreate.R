@@ -50,14 +50,14 @@ ticketQuery <- paste("SELECT BADGENUMBER, OFFICERNAME, ISSUEDATE, BEATNAME, coun
     (SELECT I.BADGENUMBER,I.OFFICERNAME,CAST(I.ISSUEDATETIME AS DATE) AS ISSUEDATE, C.GPSBEAT AS BEATNAME
     FROM ", config$db, ".dbo.ISSUANCE I JOIN ", config$db, ".dbo.CORRECTEDBEATS C
     ON I.TICKETNUMBER = C.TICKETNUMBER) A GROUP BY BADGENUMBER, OFFICERNAME, ISSUEDATE, BEATNAME", sep="")
-ticketcount <- sqlQuery(dbhandle, ticketQuery)
+ticketcount <- dbGetQuery(dbhandle, ticketQuery)
 ticketcount$ISSUEDATE <- as.Date(ticketcount$ISSUEDATE)
 
 featureQuery <- paste("SELECT O.OFFICERID AS BADGENUMBER, O.OFFICERNAME, CAST(O.DATETIME AS DATE) AS DATEBEAT,
     O.RECID AS SESSIONID, O.DATETIME, O.DATETIME2, D.TOTALLENGTH AS SESSIONLENGTH,
     D.PATROLLENGTH, D.SERVICELENGTH, D.OTHERLENGTH FROM ",
     config$db, ".dbo.OMS_SESSION O JOIN ", config$db, ".dbo.DutyStatusFeats D on O.RECID = D.SESSIONID", sep="")
-oms_session_feats <- sqlQuery(dbhandle, featureQuery)
+oms_session_feats <- dbGetQuery(dbhandle, featureQuery)
 oms_session_feats$DATEBEAT <- as.Date(oms_session_feats$DATEBEAT)
 
 weather_feats1 <- getSummarizedWeather("DEN", "2014-01-01", end_date = "2014-12-31",

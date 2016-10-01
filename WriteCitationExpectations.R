@@ -48,18 +48,18 @@ flog.info("Generating citation expectations for %s", city, name="quiet")
 dbhandle <- GetDBHandle(config)
 
 flog.info("Deleting expectations for yesterday", name="quiet")
-sqlQuery(dbhandle, paste("DELETE FROM ", config$db, ".dbo.CITATIONPREDICTION WHERE DATE=\'",
+dbGetQuery(dbhandle, paste("DELETE FROM ", config$db, ".dbo.CITATIONPREDICTION WHERE DATE=\'",
     (Sys.Date() - 1),"\'", sep=""))
 
 flog.info("Bulk inserting citation expectations", name="quiet")
-sqlQuery(dbhandle, paste("BULK INSERT ", config$db, ".dbo.CITATIONPREDICTION FROM
+dbGetQuery(dbhandle, paste("BULK INSERT ", config$db, ".dbo.CITATIONPREDICTION FROM
     '/opt/citysight-expectations/citExpToday.csv' WITH (FIELDTERMINATOR = ',', ROWTERMINATOR = '0x0a')", sep=""))
 
-sqlQuery(dbhandle, paste("IF OBJECT_ID('CITATIONPREDICTIONCONVERTED', 'U') IS NOT NULL DROP TABLE ",
+dbGetQuery(dbhandle, paste("IF OBJECT_ID('CITATIONPREDICTIONCONVERTED', 'U') IS NOT NULL DROP TABLE ",
     config$db, ".dbo.CITATIONPREDICTIONCONVERTED", sep=""))
 
-sqlQuery(dbhandle, paste("SELECT * INTO ", config$db, ".dbo.CITATIONPREDICTIONCONVERTED FROM ",
+dbGetQuery(dbhandle, paste("SELECT * INTO ", config$db, ".dbo.CITATIONPREDICTIONCONVERTED FROM ",
     config$db, ".dbo.CITATIONPREDICTION", sep=""))
 
-sqlQuery(dbhandle, paste("ALTER TABLE ", config$db,
+dbGetQuery(dbhandle, paste("ALTER TABLE ", config$db,
     ".dbo.CITATIONPREDICTIONCONVERTED ALTER COLUMN DATE date", sep=""))
