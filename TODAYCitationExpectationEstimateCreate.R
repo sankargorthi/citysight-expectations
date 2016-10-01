@@ -41,7 +41,7 @@ city <- "devdenver"
 config <- BuildConfig(yaml.load_file("/opt/citysight-expectations/config.yml"), city)
 
 ## Connect to the database
-flog.info("Generating expectations for %s", city, name="quiet")
+flog.info("Generating estimates for %s", city, name="quiet")
 dbhandle <- GetDBHandle(config)
 
 
@@ -159,6 +159,7 @@ allBeats <- c("AM1","AM2","AM3","AM4","PM1","PM2","PM3","PM4","PM5","PM6","PM7",
               "PM11","PM12","PM13","PM15","PM15",seq(1,16),seq(49,75))
 allBeatTypes <- c(rep("AM",4),rep("PM",15),rep("W",14),rep("WLHS",2),rep("D",25),rep("DLHS",2))
 
+flog.info("Iterating over %d beats", length(allBeats), name="quiet")
 for(i in 1:length(allBeats)){
   newrow <- c(as.character(Sys.Date()), SESSIONLENGTH, PATROLLENGTH, SERVICELENGTH, OTHERLENGTH,
               weather_feats$Max_TemperatureF[weather_feats$Date == Sys.Date()],
@@ -210,11 +211,12 @@ citExpAllDays <- data.frame(citDate=as.Date(character()),
 combined_feats_GT_test <- combined_feats_GT[combined_feats_GT$DATEBEAT == (Sys.Date()),]
 
 print(nrow(combined_feats_GT_test))
+flog.info("Found %d features", nrow(combined_feats_GT_test), name="quiet")
 
 print(nrow(combined_feats_GT))
 for ( i in 1:nrow(combined_feats_GT_test)){
+  flog.info("Generating estimate#%s", i, name="quiet")
   print(combined_feats_GT_test$DATEBEAT[i])
-  print(Sys.Date())
   if(combined_feats_GT_test$DATEBEAT[i] == Sys.Date()){
     citDate <- as.character(as.Date(combined_feats_GT_test$DATEBEAT[i]))
     citBeat <- as.character(combined_feats_GT_test$BEATNAME[i])
@@ -225,6 +227,7 @@ for ( i in 1:nrow(combined_feats_GT_test)){
     testall <- traintest[traintest$DATEBEAT == combined_feats_GT_test$DATEBEAT[i],]
     test <- testall[row.match(combined_feats_GT_test[i,],testall),]
     if(nrow(train) < 100){
+      flog.info("No training data for #%s", i, name="quiet")
       citDate <- as.character(as.Date(combined_feats_GT_test$DATEBEAT[i]))
       citBeat <- as.character(combined_feats_GT_test$BEATNAME[i])
       citExp <- -1
@@ -232,12 +235,14 @@ for ( i in 1:nrow(combined_feats_GT_test)){
       newrow <-  data.frame(citDate=citDate,citBeat=citBeat,citExp=citExp,citReason=citReason)
       citExpAllDays <- rbind(citExpAllDays, newrow)
     } else {
+      flog.info("Found training data for #%s with %s rows", i, nrow(train), name="quiet")
       rf <- randomForest(TICKETCOUNT ~ ., data=train, ntree=20, importance=TRUE)
       citExp <- as.numeric(predict(rf, test))
       citReasonframe <-as.data.frame(cbind(as.data.frame(importance(rf)),rownames(importance(rf))))
       names(citReasonframe) <- c('percentMSE', 'percentNodePurity', 'feature')
       citReason <- "Feature,percentMSE,percentNodePurity,ActualValue"
       for( j in 1:nrow(citReasonframe)){
+        flog.info("    Generating data for frame#%s", j, name="quiet")
         citReason <- paste(citReason,";",citReasonframe$feature[j],":",citReasonframe$percentMSE[j],":",
             citReasonframe$percentNodePurity[j],":", combined_feats_GT[i,grep(paste("^",
             citReasonframe$feature[j],"$",sep=""), names(combined_feats_GT))],sep="")
@@ -267,3 +272,4 @@ combined_feats_GT$BEATTYPE <- as.character(combined_feats_GT$BEATTYPE)
 
 write.table(citExpAllDaystest,file="/opt/citysight-expectations/citExpEstimatesToday.csv",
     row.names=FALSE, col.names=FALSE, sep=",", quote=FALSE)
+flog.info("Done writing estimates for %s", config$city, "quiet")
