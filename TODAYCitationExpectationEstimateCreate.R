@@ -272,4 +272,4 @@ combined_feats_GT$BEATTYPE <- as.character(combined_feats_GT$BEATTYPE)
 
 write.table(citExpAllDaystest,file="/opt/citysight-expectations/citExpEstimatesToday.csv",
     row.names=FALSE, col.names=FALSE, sep=",", quote=FALSE)
-flog.info("Done writing estimates for %s", config$city, "quiet")
+flog.info("Done writing estimates for %s", city, "quiet")
