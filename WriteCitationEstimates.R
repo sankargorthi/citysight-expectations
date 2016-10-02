@@ -49,19 +49,18 @@ flog.info("Generating mark expectations for %s", city, name="quiet")
 dbhandle <- GetDBHandle(config)
 
 flog.info("Deleting estimates for yesterday", name="quiet")
-dbGetQuery(dbhandle,paste("DELETE FROM ", config$db,
-    ".dbo.CITATIONESTIMATES WHERE DATE=\'",(Sys.Date() - 1),"\'", sep=""))
+dbSendUpdate(dbhandle,paste("DELETE FROM ", config$db, ".dbo.CITATIONESTIMATES WHERE DATE=\'",Sys.Date(),"\'", sep=""))
 
 flog.info("Bulk inserting estimates", name="quiet")
-dbGetQuery(dbhandle, paste("BULK INSERT ", config$db, ".dbo.CITATIONESTIMATES FROM
+dbSendUpdate(dbhandle, paste("BULK INSERT ", config$db, ".dbo.CITATIONESTIMATES FROM
   '/opt/citysight-expectations/citExpEstimatesToday.csv'
   WITH (FIELDTERMINATOR = ',', ROWTERMINATOR = '0x0a')", sep=""))
 
-dbGetQuery(dbhandle, paste("IF OBJECT_ID('CITATIONESTIMATESCONVERTED', 'U') IS NOT NULL DROP TABLE",
+dbSendUpdate(dbhandle, paste("IF OBJECT_ID('CITATIONESTIMATESCONVERTED', 'U') IS NOT NULL DROP TABLE",
     config$db, ".dbo.CITATIONESTIMATESCONVERTED", sep=""))
 
-dbGetQuery(dbhandle, paste("SELECT * INTO ", config$db, ".dbo.CITATIONESTIMATESCONVERTED FROM ",
+dbSendUpdate(dbhandle, paste("SELECT * INTO ", config$db, ".dbo.CITATIONESTIMATESCONVERTED FROM ",
     config$db, ".dbo.CITATIONESTIMATES", sep=""))
 
-dbGetQuery(dbhandle, paste("ALTER TABLE ", config$db,
+dbSendUpdate(dbhandle, paste("ALTER TABLE ", config$db,
     ".dbo.CITATIONESTIMATESCONVERTED ALTER COLUMN DATE date", sep=""))
