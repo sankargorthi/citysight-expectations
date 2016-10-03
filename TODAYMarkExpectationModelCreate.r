@@ -1,43 +1,63 @@
-if (!require('RODBC')) {
-  install.packages('RODBC', repos="http://cran.rstudio.com/")
-}
-if (!require('randomForest')) {
-  install.packages('randomForest', repos="http://cran.rstudio.com/")
-}
-if (!require('prodlim')) {
-  install.packages('prodlim', repos="http://cran.rstudio.com/")
-}
-if (!require('yaml')) {
-  install.packages('yaml', repos="http://cran.rstudio.com/")
-}
-if (!require('devtools')) {
-  install.packages('devtools', repos="http://cran.rstudio.com/")
+# AB: util functions
+isInstalled <- function(package) {
+  is.element(package, installed.packages()[,1])
 }
 
+LoadOrInstallLibraries <- function(packages) {
+  for(package in packages) {
+    if(!isInstalled(package)) {
+      install.packages(package,repos="http://cran.rstudio.com/")
+    }
+    require(package,character.only=TRUE,quietly=TRUE)
+  }
+}
+GetDBHandle <- function (ct) {
+  drv <- JDBC("com.microsoft.sqlserver.jdbc.SQLServerDriver", "/opt/citysight-expectations/sqljdbc/enu/sqljdbc4.jar")
+  connector <- paste("jdbc:sqlserver://", ct$server, sep="")
+  conn <- dbConnect(drv, connector, ct$uid, ct$pwd)
+
+  return(conn)
+}
+
+BuildConfig <- function (config, city) {
+  ct <- config[[city]]
+
+  server <- ct$server
+  uid <- ct$username
+  pwd <- ct$password
+  db <- ct$db
+
+  return(list("server" = server, "uid" = uid, "pwd" = pwd, "db" = db))
+}
+
+LoadOrInstallLibraries(c("RJDBC", "randomForest", "prodlim", "yaml", "devtools", "futile.logger"))
 install_github("ozagordi/weatherData")
 library(weatherData)
-#library('yaml')
-
-#config <- yaml.load_file("ienforce-config.yml")
-
 options(max.print=5)
+
+flog.appender(appender.file("/tmp/expectations.log"), "quiet")
+city <- "devdenver"
+config <- BuildConfig(yaml.load_file("/opt/citysight-expectations/config.yml"), city)
+
 ## Connect to the database
-dbhandle <- odbcDriverConnect('driver={SQL Server};server=localhost;database=DEVDENVER;uid=sa;pwd=password;trusted_connection=true')
+flog.info("Generating mark expectations for %s", city, name="quiet")
+dbhandle <- GetDBHandle(config)
 
 
 # Query database to get features and combine into one frame
-markcount <- sqlQuery(dbhandle,
-"SELECT MARKEDDATE, SESSIONID, BEATNAME, count(*) AS MARKCOUNT FROM
+markQuery <- paste("SELECT MARKEDDATE, SESSIONID, BEATNAME, count(*) AS MARKCOUNT FROM
 (SELECT CAST(T.MARKEDDATETIME AS DATE) AS MARKEDDATE, T.LICENSEPLATE, T.SESSIONID, C.GPSBEAT AS BEATNAME
-FROM TIMING_ACTIVITY T JOIN CORRECTEDMARKS C ON T.LICENSEPLATE = C.LICENSEPLATE AND T.SESSIONID = C.SESSIONID) A
-GROUP BY SESSIONID, MARKEDDATE, BEATNAME")
+FROM ", config$db, ".dbo.TIMING_ACTIVITY T JOIN ", config$db, ".dbo.CORRECTEDMARKS
+C ON T.LICENSEPLATE = C.LICENSEPLATE AND T.SESSIONID = C.SESSIONID) A
+GROUP BY SESSIONID, MARKEDDATE, BEATNAME", sep="")
+markcount <- dbGetQuery(dbhandle,markQuery)
 markcount$MARKEDDATE <- as.Date(markcount$MARKEDDATE)
 
-oms_session_feats <- sqlQuery(dbhandle,
-"SELECT O.OFFICERID AS BADGENUMBER, O.OFFICERNAME, CAST(O.DATETIME AS DATE) AS DATEBEAT, O.RECID AS SESSIONID,
+featuresQuery <- paste("SELECT O.OFFICERID AS BADGENUMBER, O.OFFICERNAME, CAST(O.DATETIME AS DATE) AS DATEBEAT, O.RECID AS SESSIONID,
 O.DATETIME, O.DATETIME2, D.TOTALLENGTH AS SESSIONLENGTH,
 D.PATROLLENGTH, D.SERVICELENGTH, D.OTHERLENGTH
-FROM OMS_SESSION O JOIN DutyStatusFeats D on O.RECID = D.SESSIONID")
+FROM ", config$db, ".dbo.OMS_SESSION O JOIN ", config$db, ".dbo.DutyStatusFeats D on O.RECID = D.SESSIONID", sep="")
+oms_session_feats <- dbGetQuery(dbhandle, featuresQuery)
 oms_session_feats$DATEBEAT <- as.Date(oms_session_feats$DATEBEAT)
 
 weather_feats1 <- getSummarizedWeather("DEN", "2014-01-01", end_date = "2014-12-31", station_type = "airportCode", opt_all_columns = TRUE)
@@ -149,24 +169,24 @@ print((Sys.Date() - 1))
     train <- traintest[traintest$DATEBEAT < combined_feats_GT_test$DATEBEAT[i],]
     testall <- traintest[traintest$DATEBEAT == combined_feats_GT_test$DATEBEAT[i],]
     test <- testall[row.match(combined_feats_GT_test[i,],testall),]
-    if(nrow(train) < 100){
+    if (nrow(train) < 100) {
       date <- as.character(as.Date(combined_feats_GT_test$DATEBEAT[i]))
       beat <- as.character(combined_feats_GT_test$BEATNAME[i])
       exp <- -1
       reason <- "Insufficient Data"
-      newrow <-  data.frame(date=date,beat=beat,exp=exp,reason=reason)
+      newrow <- data.frame(date=date,beat=beat,exp=exp,reason=reason)
       citExpAllDays <- rbind(citExpAllDays, newrow)
-    }
-    else{
+    } else {
       rf <- randomForest(MARKCOUNT ~ ., data=train, ntree=20, importance=TRUE)
       exp <- as.numeric(predict(rf, test))
-      citReasonframe <-as.data.frame(cbind(as.data.frame(importance(rf)),rownames(importance(rf))))
+      citReasonframe <- as.data.frame(cbind(as.data.frame(importance(rf)),rownames(importance(rf))))
       names(citReasonframe) <- c('percentMSE', 'percentNodePurity', 'feature')
       reason <- "Feature,percentMSE,percentNodePurity,ActualValue"
-      for( j in 1:nrow(citReasonframe)){
+      for(j in 1:nrow(citReasonframe)) {
         reason <- paste(reason,";",citReasonframe$feature[j],":",citReasonframe$percentMSE[j],":"
-                           ,citReasonframe$percentNodePurity[j],":",
-                           combined_feats_GT[i,grep(paste("^",citReasonframe$feature[j],"$",sep=""), names(combined_feats_GT))],sep="")
+            ,citReasonframe$percentNodePurity[j],":",
+            combined_feats_GT[i,grep(paste("^",citReasonframe$feature[j],"$",sep=""),
+            names(combined_feats_GT))],sep="")
       }
 
       newrow <- data.frame(date=date,beat=beat,exp=exp,reason=reason)
@@ -193,5 +213,7 @@ combined_feats_GT$BEATTYPE <- as.character(combined_feats_GT$BEATTYPE)
 
 #sqlSave(channel=dbhandle, dat=citExpAllDaystest, tablename="MARKPREDICTION", append=TRUE, rownames=FALSE)
 
-write.table(citExpAllDaystest,file="D:\\citysightanalytics\\expectations\\markExpToday.csv", row.names=FALSE, col.names=FALSE, sep=",", quote=FALSE)
-write.table(combined_feats_GT,file="D:\\citysightanalytics\\expectations\\combined_feats_GT_mark.csv", row.names=FALSE, col.names=FALSE, sep=",", quote=FALSE)
+write.table(citExpAllDaystest, file="/opt/citysight-expectations/markExpToday.csv",
+    row.names=FALSE, col.names=FALSE, sep=",", quote=FALSE)
+write.table(combined_feats_GT, file="/opt/citysight-expectations/combined_feats_GT_mark.csv",
+    row.names=FALSE, col.names=FALSE, sep=",", quote=FALSE)
