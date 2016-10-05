@@ -32,14 +32,22 @@ BuildConfig <- function (config, city) {
   return(list("server" = server, "uid" = uid, "pwd" = pwd, "db" = db))
 }
 
-LoadOrInstallLibraries(c("RJDBC", "randomForest", "prodlim", "yaml", "devtools", "futile.logger"))
+LoadOrInstallLibraries(c("argparser", "RJDBC", "randomForest", "prodlim", "yaml", "devtools", "futile.logger"))
 install_github("ozagordi/weatherData")
 library(weatherData)
 options(max.print=5)
 
+parser <- arg_parser("Generate Citation Estimates")
+parser <- add_argument(parser, "city", help="label in config.yml for DB credentials")
+parser <- add_argument(parser, "targets", help="list of cities to write to")
+
+args <- parse_args(parser, commandArgs(trailingOnly=TRUE))
+city <- args$city
+targets <- strsplit(args$targets, ",")[[1]]
+
+
 flog.appender(appender.file("/tmp/estimates.log"), "quiet")
 today <- Sys.Date()
-city <- "devdenver"
 baseConfig <- yaml.load_file("/opt/citysight-expectations/config.yml")
 config <- BuildConfig(baseConfig, city)
 
@@ -294,12 +302,6 @@ for (r in 1:nrow(citExpAllDaystest)) {
 
 }
 
-insertquery <- paste("INSERT INTO ", tableIdentifier, "CITATIONESTIMATESCONVERTED VALUES",
-    paste(queryValues, collapse=","),
-    sep="")
-dbSendUpdate(dbhandle, insertquery)
-flog.info("Wrote to CITATIONESTIMATES", name="quiet")
-
 write.table(citExpAllDaystest,
     file = paste("/opt/citysight-expectations/citExpEstimatesToday",
         today,
@@ -309,5 +311,16 @@ write.table(citExpAllDaystest,
     col.names=FALSE,
     sep=",",
     quote=FALSE)
+
+insertQueries <- list()
+for (q in 1:length(writeTables)) {
+  insertQuery <- paste("INSERT INTO ", writeTables[[q]], "CITATIONESTIMATESCONVERTED VALUES",
+      paste(queryValues, collapse=", "),
+      sep="")
+  cfg <- BuildConfig(baseConfig, targets[[q]])
+  writeHandle <- GetDBHandle(cfg)
+  dbSendUpdate(dbhandle, insertQuery)
+  flog.info("Wrote CITATIONESTIMATES to %s", targets[[q]], name="quiet")
+}
 
 flog.info("Done writing estimates for %s", city, "quiet")
