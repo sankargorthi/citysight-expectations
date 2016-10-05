@@ -285,9 +285,6 @@ combined_feats_GT$monthOfYear <- as.character(combined_feats_GT$monthOfYear)
 combined_feats_GT$isWeekend <- as.character(combined_feats_GT$isWeekend)
 combined_feats_GT$BEATTYPE <- as.character(combined_feats_GT$BEATTYPE)
 
-flog.info("Deleting estimates for yesterday", name="quiet")
-dbSendUpdate(dbhandle,paste("DELETE FROM ", tableIdentifier, "CITATIONESTIMATESCONVERTED WHERE DATE='", today, "'", sep=""))
-
 flog.info("Writing estimates data to table", name="quiet")
 
 queryValues <- list()
@@ -312,12 +309,16 @@ write.table(citExpAllDaystest,
 
 insertQueries <- list()
 for (q in 1:length(writeTables)) {
+  cfg <- BuildConfig(baseConfig, targets[[q]])
+  writeHandle <- GetDBHandle(cfg)
+
+  flog.info("Deleting estimates for yesterday %s", targets[[q]], name="quiet")
+  dbSendUpdate(writeHandle, paste("DELETE FROM ", writeTables[[q]], "CITATIONESTIMATESCONVERTED WHERE DATE='", today, "'", sep=""))
+
   insertQuery <- paste("INSERT INTO ", writeTables[[q]], "CITATIONESTIMATESCONVERTED VALUES",
       paste(queryValues, collapse=", "),
       sep="")
-  cfg <- BuildConfig(baseConfig, targets[[q]])
-  writeHandle <- GetDBHandle(cfg)
-  dbSendUpdate(dbhandle, insertQuery)
+  dbSendUpdate(writeHandle, insertQuery)
   flog.info("Wrote CITATIONESTIMATES to %s", targets[[q]], name="quiet")
 }
 
