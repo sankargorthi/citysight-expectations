@@ -39,17 +39,22 @@ options(max.print=5)
 
 flog.appender(appender.file("/tmp/estimates.log"), "quiet")
 city <- "devdenver"
-config <- BuildConfig(yaml.load_file("/opt/citysight-expectations/config.yml"), city)
+baseConfig <- yaml.load_file("/opt/citysight-expectations/config.yml")
+config <- BuildConfig(baseConfig, city)
 
 ## Connect to the database
 flog.info("Generating estimates for %s", city, name="quiet")
 dbhandle <- GetDBHandle(config)
-
+tableIdentifier <- paste(config$db, ".dbo.", sep="")
+writeTables <- list()
+for (t in 1:length(targets)) {
+  writeTables[[t]] <- paste(targets[[t]], ".dbo.", sep="")
+}
 
 # Query database to get features and combine into one frame
 ticketQuery <- paste("SELECT BADGENUMBER, OFFICERNAME, ISSUEDATE, BEATNAME, count(*) AS TICKETCOUNT FROM
     (SELECT I.BADGENUMBER,I.OFFICERNAME,CAST(I.ISSUEDATETIME AS DATE) AS ISSUEDATE, C.GPSBEAT AS BEATNAME
-    FROM ", config$db, ".dbo.ISSUANCE I JOIN ", config$db, ".dbo.CORRECTEDBEATS C
+    FROM ", tableIdentifier, "ISSUANCE I JOIN ", tableIdentifier, "CORRECTEDBEATS C
     ON I.TICKETNUMBER = C.TICKETNUMBER) A GROUP BY BADGENUMBER, OFFICERNAME, ISSUEDATE, BEATNAME", sep="")
 ticketcount <- dbGetQuery(dbhandle, ticketQuery)
 ticketcount$ISSUEDATE <- as.Date(ticketcount$ISSUEDATE)
@@ -57,7 +62,7 @@ ticketcount$ISSUEDATE <- as.Date(ticketcount$ISSUEDATE)
 featureQuery <- paste("SELECT O.OFFICERID AS BADGENUMBER, O.OFFICERNAME, CAST(O.DATETIME AS DATE) AS DATEBEAT,
     O.RECID AS SESSIONID, O.DATETIME, O.DATETIME2, D.TOTALLENGTH AS SESSIONLENGTH,
     D.PATROLLENGTH, D.SERVICELENGTH, D.OTHERLENGTH FROM ",
-    config$db, ".dbo.OMS_SESSION O JOIN ", config$db, ".dbo.DutyStatusFeats D on O.RECID = D.SESSIONID", sep="")
+    tableIdentifier, "OMS_SESSION O JOIN ", tableIdentifier, "DutyStatusFeats D on O.RECID = D.SESSIONID", sep="")
 oms_session_feats <- dbGetQuery(dbhandle, featureQuery)
 oms_session_feats$DATEBEAT <- as.Date(oms_session_feats$DATEBEAT)
 
@@ -270,6 +275,24 @@ combined_feats_GT$dayOfWeek <- as.character(combined_feats_GT$dayOfWeek)
 combined_feats_GT$monthOfYear <- as.character(combined_feats_GT$monthOfYear)
 combined_feats_GT$isWeekend <- as.character(combined_feats_GT$isWeekend)
 combined_feats_GT$BEATTYPE <- as.character(combined_feats_GT$BEATTYPE)
+
+flog.info("Deleting estimates for yesterday", name="quiet")
+dbSendUpdate(dbhandle,paste("DELETE FROM ", tableIdentifier, "CITATIONESTIMATESCONVERTED WHERE DATE=\'", Sys.Date(), "\'", sep=""))
+
+flog.info("Writing estimates data to table", name="quiet")
+
+for (r in 1:nrow(citExpAllDaystest)) {
+  insertquery <- paste("INSERT INTO ", tableIdentifier, "CITATIONESTIMATESCONVERTED
+      VALUES ('", citExpAllDaystest$DATE[r], "', '",
+                  citExpAllDaystest$BEAT[r], "', '",
+                  citExpAllDaystest$EXP[r], "', '",
+                  citExpAllDaystest$REASON[r], "', ",
+                  480, # Constant for now. TODO Replace with actual session length
+        ")",
+      sep="")
+  dbSendUpdate(dbhandle, insertquery)
+  flog.info("Wrote row %d for beat %s to CITATIONESTIMATES", r, citExpAllDaystest$BEAT[r], name="quiet")
+}
 
 write.table(citExpAllDaystest,file="/opt/citysight-expectations/citExpEstimatesToday.csv",
     row.names=FALSE, col.names=FALSE, sep=",", quote=FALSE)
