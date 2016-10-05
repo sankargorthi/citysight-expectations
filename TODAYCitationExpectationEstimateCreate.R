@@ -156,10 +156,10 @@ combined_feats_GT$OFFICERNAME <- NULL
 
 
 # Add Estimate Rows
-PATROLLENGTH = 390
+PATROLLENGTH = 480
 SERVICELENGTH = 0
 OTHERLENGTH = 0
-SESSIONLENGTH = 390
+SESSIONLENGTH = 480
 
 allBeats <- c("AM1","AM2","AM3","AM4","PM1","PM2","PM3","PM4","PM5","PM6","PM7","PM8","PM9","PM10",
               "PM11","PM12","PM13","PM15","PM15",seq(1,16),seq(49,75))
