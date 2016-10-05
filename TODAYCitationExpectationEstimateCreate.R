@@ -1,9 +1,9 @@
 # AB: util functions
-isInstalled <- function(package) {
+isInstalled <- function (package) {
   is.element(package, installed.packages()[,1])
 }
 
-LoadOrInstallLibraries <- function(packages) {
+LoadOrInstallLibraries <- function (packages) {
   for(package in packages) {
     if(!isInstalled(package)) {
       install.packages(package,repos="http://cran.rstudio.com/")
@@ -11,6 +11,7 @@ LoadOrInstallLibraries <- function(packages) {
     require(package,character.only=TRUE,quietly=TRUE)
   }
 }
+
 GetDBHandle <- function (ct) {
   drv <- JDBC("com.microsoft.sqlserver.jdbc.SQLServerDriver",
       "/opt/citysight-expectations/sqljdbc/enu/sqljdbc4.jar")
