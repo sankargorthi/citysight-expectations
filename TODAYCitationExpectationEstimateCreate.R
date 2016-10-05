@@ -38,6 +38,7 @@ library(weatherData)
 options(max.print=5)
 
 flog.appender(appender.file("/tmp/estimates.log"), "quiet")
+today <- Sys.Date()
 city <- "devdenver"
 baseConfig <- yaml.load_file("/opt/citysight-expectations/config.yml")
 config <- BuildConfig(baseConfig, city)
@@ -70,7 +71,7 @@ weather_feats1 <- getSummarizedWeather("DEN", "2014-01-01", end_date = "2014-12-
     station_type = "airportCode", opt_all_columns = TRUE)
 weather_feats2 <- getSummarizedWeather("DEN", "2015-01-01", end_date = "2015-12-31",
     station_type = "airportCode", opt_all_columns = TRUE)
-weather_feats3 <- getSummarizedWeather("DEN", "2016-01-01", end_date = Sys.Date(),
+weather_feats3 <- getSummarizedWeather("DEN", "2016-01-01", end_date = today,
     station_type = "airportCode", opt_all_columns = TRUE)
 weather_feats_temp <- rbind(weather_feats1, weather_feats2)
 colnames(weather_feats3) <- colnames(weather_feats_temp)
@@ -167,16 +168,16 @@ allBeatTypes <- c(rep("AM",4),rep("PM",15),rep("W",14),rep("WLHS",2),rep("D",25)
 
 flog.info("Iterating over %d beats", length(allBeats), name="quiet")
 for(i in 1:length(allBeats)){
-  newrow <- c(as.character(Sys.Date()), SESSIONLENGTH, PATROLLENGTH, SERVICELENGTH, OTHERLENGTH,
-              weather_feats$Max_TemperatureF[weather_feats$Date == Sys.Date()],
-              weather_feats$Min_TemperatureF[weather_feats$Date == Sys.Date()],
-              weather_feats$Min_VisibilityMiles[weather_feats$Date == Sys.Date()],
-              weather_feats$Mean_Wind_SpeedMPH[weather_feats$Date == Sys.Date()],
-              weather_feats$PrecipitationIn[weather_feats$Date == Sys.Date()],
-              weather_feats$CloudCover[weather_feats$Date == Sys.Date()],
-              weather_feats$Events[weather_feats$Date == Sys.Date()],
-              allBeats[i], "-1", weekdays(Sys.Date()), format(Sys.Date(), "%m"),
-              ifelse(weekdays(Sys.Date())=="Sunday" | weekdays(Sys.Date())=="Saturday",1,0), allBeatTypes[i])
+  newrow <- c(as.character(today), SESSIONLENGTH, PATROLLENGTH, SERVICELENGTH, OTHERLENGTH,
+              weather_feats$Max_TemperatureF[weather_feats$Date == today],
+              weather_feats$Min_TemperatureF[weather_feats$Date == today],
+              weather_feats$Min_VisibilityMiles[weather_feats$Date == today],
+              weather_feats$Mean_Wind_SpeedMPH[weather_feats$Date == today],
+              weather_feats$PrecipitationIn[weather_feats$Date == today],
+              weather_feats$CloudCover[weather_feats$Date == today],
+              weather_feats$Events[weather_feats$Date == today],
+              allBeats[i], "-1", weekdays(today), format(today, "%m"),
+              ifelse(weekdays(today)=="Sunday" | weekdays(today)=="Saturday",1,0), allBeatTypes[i])
   combined_feats_GT <- rbind(combined_feats_GT,newrow)
 
 }
@@ -214,7 +215,7 @@ citExpAllDays <- data.frame(citDate=as.Date(character()),
                             citExp=numeric(),
                             citReason=character(),
                             stringsAsFactors=FALSE)
-combined_feats_GT_test <- combined_feats_GT[combined_feats_GT$DATEBEAT == (Sys.Date()),]
+combined_feats_GT_test <- combined_feats_GT[combined_feats_GT$DATEBEAT == (today),]
 
 print(nrow(combined_feats_GT_test))
 flog.info("Found %d features", nrow(combined_feats_GT_test), name="quiet")
@@ -223,7 +224,7 @@ print(nrow(combined_feats_GT))
 for ( i in 1:nrow(combined_feats_GT_test)){
   flog.info("Generating estimate#%s", i, name="quiet")
   print(combined_feats_GT_test$DATEBEAT[i])
-  if(combined_feats_GT_test$DATEBEAT[i] == Sys.Date()){
+  if(combined_feats_GT_test$DATEBEAT[i] == today){
     citDate <- as.character(as.Date(combined_feats_GT_test$DATEBEAT[i]))
     citBeat <- as.character(combined_feats_GT_test$BEATNAME[i])
     traintest <- combined_feats_GT[combined_feats_GT$DATEBEAT <=
@@ -277,7 +278,7 @@ combined_feats_GT$isWeekend <- as.character(combined_feats_GT$isWeekend)
 combined_feats_GT$BEATTYPE <- as.character(combined_feats_GT$BEATTYPE)
 
 flog.info("Deleting estimates for yesterday", name="quiet")
-dbSendUpdate(dbhandle,paste("DELETE FROM ", tableIdentifier, "CITATIONESTIMATESCONVERTED WHERE DATE=\'", Sys.Date(), "\'", sep=""))
+dbSendUpdate(dbhandle,paste("DELETE FROM ", tableIdentifier, "CITATIONESTIMATESCONVERTED WHERE DATE='", today, "'", sep=""))
 
 flog.info("Writing estimates data to table", name="quiet")
 
@@ -301,7 +302,7 @@ flog.info("Wrote to CITATIONESTIMATES", name="quiet")
 
 write.table(citExpAllDaystest,
     file = paste("/opt/citysight-expectations/citExpEstimatesToday",
-        Sys.Date(),
+        today,
         ".csv",
         sep=""),
     row.names=FALSE,
