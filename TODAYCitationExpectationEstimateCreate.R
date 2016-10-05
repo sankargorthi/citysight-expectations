@@ -299,7 +299,7 @@ for (r in 1:nrow(citExpAllDaystest)) {
 }
 
 write.table(citExpAllDaystest,
-    file = paste("/opt/citysight-expectations/citExpEstimatesToday",
+    file = paste("/tmp/citExpEstimatesToday-",
         today,
         ".csv",
         sep=""),
