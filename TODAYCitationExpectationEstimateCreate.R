@@ -281,19 +281,32 @@ dbSendUpdate(dbhandle,paste("DELETE FROM ", tableIdentifier, "CITATIONESTIMATESC
 
 flog.info("Writing estimates data to table", name="quiet")
 
+queryValues <- list()
 for (r in 1:nrow(citExpAllDaystest)) {
-  insertquery <- paste("INSERT INTO ", tableIdentifier, "CITATIONESTIMATESCONVERTED
-      VALUES ('", citExpAllDaystest$DATE[r], "', '",
+  queryValues[[r]] <- paste("('", citExpAllDaystest$DATE[r], "', '",
                   citExpAllDaystest$BEAT[r], "', '",
                   citExpAllDaystest$EXP[r], "', '",
                   citExpAllDaystest$REASON[r], "', ",
                   480, # Constant for now. TODO Replace with actual session length
         ")",
       sep="")
-  dbSendUpdate(dbhandle, insertquery)
-  flog.info("Wrote row %d for beat %s to CITATIONESTIMATES", r, citExpAllDaystest$BEAT[r], name="quiet")
+
 }
 
-write.table(citExpAllDaystest,file="/opt/citysight-expectations/citExpEstimatesToday.csv",
-    row.names=FALSE, col.names=FALSE, sep=",", quote=FALSE)
+insertquery <- paste("INSERT INTO ", tableIdentifier, "CITATIONESTIMATESCONVERTED VALUES",
+    paste(queryValues, collapse=","),
+    sep="")
+dbSendUpdate(dbhandle, insertquery)
+flog.info("Wrote to CITATIONESTIMATES", name="quiet")
+
+write.table(citExpAllDaystest,
+    file = paste("/opt/citysight-expectations/citExpEstimatesToday",
+        Sys.Date(),
+        ".csv",
+        sep=""),
+    row.names=FALSE,
+    col.names=FALSE,
+    sep=",",
+    quote=FALSE)
+
 flog.info("Done writing estimates for %s", city, "quiet")
