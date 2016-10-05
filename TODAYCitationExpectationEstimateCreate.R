@@ -295,11 +295,9 @@ for (r in 1:nrow(citExpAllDaystest)) {
   queryValues[[r]] <- paste("('", citExpAllDaystest$DATE[r], "', '",
                   citExpAllDaystest$BEAT[r], "', '",
                   citExpAllDaystest$EXP[r], "', '",
-                  citExpAllDaystest$REASON[r], "', ",
-                  480, # Constant for now. TODO Replace with actual session length
+                  citExpAllDaystest$REASON[r], "'",
         ")",
       sep="")
-
 }
 
 write.table(citExpAllDaystest,
