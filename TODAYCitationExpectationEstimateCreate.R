@@ -38,16 +38,17 @@ library(weatherData)
 options(max.print=5)
 
 parser <- arg_parser("Generate Citation Estimates")
+parser <- add_argument(parser, "date", help="date to generate estimates for")
 parser <- add_argument(parser, "city", help="label in config.yml for DB credentials")
 parser <- add_argument(parser, "targets", help="list of cities to write to")
 
 args <- parse_args(parser, commandArgs(trailingOnly=TRUE))
+today <- as.Date(args$date, "%Y-%m-%d")
 city <- args$city
 targets <- strsplit(args$targets, ",")[[1]]
 
 
 flog.appender(appender.file("/tmp/estimates.log"), "quiet")
-today <- Sys.Date()
 baseConfig <- yaml.load_file("/opt/citysight-expectations/config.yml")
 config <- BuildConfig(baseConfig, city)
 
