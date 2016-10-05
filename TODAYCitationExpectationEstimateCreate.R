@@ -48,7 +48,7 @@ city <- args$city
 targets <- strsplit(args$targets, ",")[[1]]
 
 
-flog.appender(appender.file("/tmp/estimates.log"), "quiet")
+flog.appender(appender.file(paste("/tmp/estimates-", today, ".log", sep="")), "quiet")
 baseConfig <- yaml.load_file("/opt/citysight-expectations/config.yml")
 config <- BuildConfig(baseConfig, city)
 
