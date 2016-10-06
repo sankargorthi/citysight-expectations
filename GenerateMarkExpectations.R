@@ -256,7 +256,7 @@ for (q in 1:length(writeTables)) {
   writeHandle <- GetDBHandle(cfg)
 
   flog.info("Deleting mark estimates for yesterday %s", targets[[q]], name="quiet")
-  dbSendUpdate(writeHandle, paste("DELETE FROM ", writeTables[[q]], "MARKPREDICTIONCONVERTED WHERE DATE='", today, "'", sep=""))
+  dbSendUpdate(writeHandle, paste("DELETE FROM ", writeTables[[q]], "MARKPREDICTIONCONVERTED WHERE DATE='", (today - 1), "'", sep=""))
 
   insertQuery <- paste("INSERT INTO ", writeTables[[q]], "MARKPREDICTIONCONVERTED VALUES",
       paste(queryValues, collapse=", "),
