@@ -64,7 +64,7 @@ for (t in 1:length(targets)) {
 # Query database to get features and combine into one frame
 markQuery <- paste("SELECT MARKEDDATE, SESSIONID, BEATNAME, count(*) AS MARKCOUNT FROM
 (SELECT CAST(T.MARKEDDATETIME AS DATE) AS MARKEDDATE, T.LICENSEPLATE, T.SESSIONID, C.GPSBEAT AS BEATNAME
-FROM ", config$db, ".dbo.TIMING_ACTIVITY T JOIN ", config$db, ".dbo.CORRECTEDMARKS
+FROM ", tableIdentifier, "TIMING_ACTIVITY T JOIN ", tableIdentifier, "CORRECTEDMARKS
 C ON T.LICENSEPLATE = C.LICENSEPLATE AND T.SESSIONID = C.SESSIONID) A
 GROUP BY SESSIONID, MARKEDDATE, BEATNAME", sep="")
 markcount <- dbGetQuery(dbhandle,markQuery)
@@ -73,7 +73,7 @@ markcount$MARKEDDATE <- as.Date(markcount$MARKEDDATE)
 featuresQuery <- paste("SELECT O.OFFICERID AS BADGENUMBER, O.OFFICERNAME, CAST(O.DATETIME AS DATE) AS DATEBEAT, O.RECID AS SESSIONID,
 O.DATETIME, O.DATETIME2, D.TOTALLENGTH AS SESSIONLENGTH,
 D.PATROLLENGTH, D.SERVICELENGTH, D.OTHERLENGTH
-FROM ", config$db, ".dbo.OMS_SESSION O JOIN ", config$db, ".dbo.DutyStatusFeats D on O.RECID = D.SESSIONID", sep="")
+FROM ", tableIdentifier, "OMS_SESSION O JOIN ", tableIdentifier, "DutyStatusFeats D on O.RECID = D.SESSIONID", sep="")
 oms_session_feats <- dbGetQuery(dbhandle, featuresQuery)
 oms_session_feats$DATEBEAT <- as.Date(oms_session_feats$DATEBEAT)
 
