@@ -175,9 +175,12 @@ citExpAllDays <- data.frame(date=as.Date(character()),
 combined_feats_GT_test <- combined_feats_GT[combined_feats_GT$DATEBEAT == (today - 1),]
 print(nrow(combined_feats_GT_test))
 print(nrow(combined_feats_GT))
+flog.info("Found %d combined rows for marks", nrow(combined_feats_GT_test), name="quiet")
 for ( i in 1:nrow(combined_feats_GT_test)){
   print(combined_feats_GT_test$DATEBEAT[i])
   print((today - 1))
+  flog.info("Generating training data #%d", i, name="quiet")
+  flog.info("Current datebeat: %s", combined_feats_GT_test$DATEBEAT[i], name="quiet")
   if(combined_feats_GT_test$DATEBEAT[i] == (today - 1)){
     date <- as.character(as.Date(combined_feats_GT_test$DATEBEAT[i]))
     beat <- as.character(combined_feats_GT_test$BEATNAME[i])
@@ -187,6 +190,7 @@ for ( i in 1:nrow(combined_feats_GT_test)){
     testall <- traintest[traintest$DATEBEAT == combined_feats_GT_test$DATEBEAT[i],]
     test <- testall[row.match(combined_feats_GT_test[i,],testall),]
     if (nrow(train) < 100) {
+      flog.info("Found too little training data", name="quiet")
       date <- as.character(as.Date(combined_feats_GT_test$DATEBEAT[i]))
       beat <- as.character(combined_feats_GT_test$BEATNAME[i])
       exp <- -1
@@ -199,6 +203,7 @@ for ( i in 1:nrow(combined_feats_GT_test)){
       citReasonframe <- as.data.frame(cbind(as.data.frame(importance(rf)),rownames(importance(rf))))
       names(citReasonframe) <- c('percentMSE', 'percentNodePurity', 'feature')
       reason <- "Feature,percentMSE,percentNodePurity,ActualValue"
+      flog.info("Found enough training data for random forest: %d", nrow(citReasonframe), name="quiet")
       for(j in 1:nrow(citReasonframe)) {
         reason <- paste(reason,";",citReasonframe$feature[j],":",citReasonframe$percentMSE[j],":"
             ,citReasonframe$percentNodePurity[j],":",
