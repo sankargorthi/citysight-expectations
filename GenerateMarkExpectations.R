@@ -1,9 +1,9 @@
 # AB: util functions
-isInstalled <- function(package) {
+isInstalled <- function (package) {
   is.element(package, installed.packages()[,1])
 }
 
-LoadOrInstallLibraries <- function(packages) {
+LoadOrInstallLibraries <- function (packages) {
   for(package in packages) {
     if(!isInstalled(package)) {
       install.packages(package,repos="http://cran.rstudio.com/")
@@ -11,8 +11,10 @@ LoadOrInstallLibraries <- function(packages) {
     require(package,character.only=TRUE,quietly=TRUE)
   }
 }
+
 GetDBHandle <- function (ct) {
-  drv <- JDBC("com.microsoft.sqlserver.jdbc.SQLServerDriver", "/opt/citysight-expectations/sqljdbc/enu/sqljdbc4.jar")
+  drv <- JDBC("com.microsoft.sqlserver.jdbc.SQLServerDriver",
+      "/opt/citysight-expectations/sqljdbc/enu/sqljdbc4.jar")
   connector <- paste("jdbc:sqlserver://", ct$server, sep="")
   conn <- dbConnect(drv, connector, ct$uid, ct$pwd)
 
@@ -30,19 +32,34 @@ BuildConfig <- function (config, city) {
   return(list("server" = server, "uid" = uid, "pwd" = pwd, "db" = db))
 }
 
-LoadOrInstallLibraries(c("RJDBC", "randomForest", "prodlim", "yaml", "devtools", "futile.logger"))
+LoadOrInstallLibraries(c("argparser", "RJDBC", "randomForest", "prodlim", "yaml", "devtools", "futile.logger"))
 install_github("ozagordi/weatherData")
 library(weatherData)
 options(max.print=5)
 
-flog.appender(appender.file("/tmp/expectations.log"), "quiet")
-city <- "devdenver"
-config <- BuildConfig(yaml.load_file("/opt/citysight-expectations/config.yml"), city)
+parser <- arg_parser("Generate Citation Estimates")
+parser <- add_argument(parser, "date", help="date to generate estimates for")
+parser <- add_argument(parser, "city", help="label in config.yml for DB credentials")
+parser <- add_argument(parser, "targets", help="list of cities to write to")
+
+args <- parse_args(parser, commandArgs(trailingOnly=TRUE))
+today <- as.Date(args$date, "%Y-%m-%d") - 1
+city <- args$city
+targets <- strsplit(args$targets, ",")[[1]]
+
+
+flog.appender(appender.file(paste("/tmp/mark-estimates-", today, ".log", sep="")), "quiet")
+baseConfig <- yaml.load_file("/opt/citysight-expectations/config.yml")
+config <- BuildConfig(baseConfig, city)
 
 ## Connect to the database
 flog.info("Generating mark expectations for %s", city, name="quiet")
 dbhandle <- GetDBHandle(config)
-
+tableIdentifier <- paste(config$db, ".dbo.", sep="")
+writeTables <- list()
+for (t in 1:length(targets)) {
+  writeTables[[t]] <- paste(targets[[t]], ".dbo.", sep="")
+}
 
 # Query database to get features and combine into one frame
 markQuery <- paste("SELECT MARKEDDATE, SESSIONID, BEATNAME, count(*) AS MARKCOUNT FROM
@@ -159,8 +176,8 @@ combined_feats_GT_test <- combined_feats_GT[combined_feats_GT$DATEBEAT == (Sys.D
 print(nrow(combined_feats_GT_test))
 print(nrow(combined_feats_GT))
 for ( i in 1:nrow(combined_feats_GT_test)){
-print(combined_feats_GT_test$DATEBEAT[i])
-print((Sys.Date() - 1))
+  print(combined_feats_GT_test$DATEBEAT[i])
+  print((Sys.Date() - 1))
   if(combined_feats_GT_test$DATEBEAT[i] == (Sys.Date() - 1)){
     date <- as.character(as.Date(combined_feats_GT_test$DATEBEAT[i]))
     beat <- as.character(combined_feats_GT_test$BEATNAME[i])
@@ -211,9 +228,41 @@ combined_feats_GT$monthOfYear <- as.character(combined_feats_GT$monthOfYear)
 combined_feats_GT$isWeekend <- as.character(combined_feats_GT$isWeekend)
 combined_feats_GT$BEATTYPE <- as.character(combined_feats_GT$BEATTYPE)
 
-#sqlSave(channel=dbhandle, dat=citExpAllDaystest, tablename="MARKPREDICTION", append=TRUE, rownames=FALSE)
+flog.info("Writing mark estimates data to table", name="quiet")
 
-write.table(citExpAllDaystest, file="/opt/citysight-expectations/markExpToday.csv",
-    row.names=FALSE, col.names=FALSE, sep=",", quote=FALSE)
-write.table(combined_feats_GT, file="/opt/citysight-expectations/combined_feats_GT_mark.csv",
-    row.names=FALSE, col.names=FALSE, sep=",", quote=FALSE)
+queryValues <- list()
+for (r in 1:nrow(citExpAllDaystest)) {
+  queryValues[[r]] <- paste("('", citExpAllDaystest$DATE[r], "', '",
+                  citExpAllDaystest$BEAT[r], "', '",
+                  citExpAllDaystest$EXP[r], "', '",
+                  citExpAllDaystest$REASON[r], "'",
+        ")",
+      sep="")
+}
+
+write.table(citExpAllDaystest,
+    file = paste("/tmp/citExpEstimatesToday-",
+        today,
+        ".csv",
+        sep=""),
+    row.names=FALSE,
+    col.names=FALSE,
+    sep=",",
+    quote=FALSE)
+
+insertQueries <- list()
+for (q in 1:length(writeTables)) {
+  cfg <- BuildConfig(baseConfig, targets[[q]])
+  writeHandle <- GetDBHandle(cfg)
+
+  flog.info("Deleting mark estimates for yesterday %s", targets[[q]], name="quiet")
+  dbSendUpdate(writeHandle, paste("DELETE FROM ", writeTables[[q]], "MARKPREDICTIONCONVERTED WHERE DATE='", today, "'", sep=""))
+
+  insertQuery <- paste("INSERT INTO ", writeTables[[q]], "MARKPREDICTIONCONVERTED VALUES",
+      paste(queryValues, collapse=", "),
+      sep="")
+  dbSendUpdate(writeHandle, insertQuery)
+  flog.info("Wrote MARKPREDICTIONS to %s", targets[[q]], name="quiet")
+}
+
+flog.info("Done writing mark estimates for %s", city, "quiet")
