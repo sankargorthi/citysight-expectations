@@ -43,7 +43,7 @@ parser <- add_argument(parser, "city", help="label in config.yml for DB credenti
 parser <- add_argument(parser, "targets", help="list of cities to write to")
 
 args <- parse_args(parser, commandArgs(trailingOnly=TRUE))
-today <- as.Date(args$date, "%Y-%m-%d") - 1
+today <- as.Date(args$date, "%Y-%m-%d")
 city <- args$city
 targets <- strsplit(args$targets, ",")[[1]]
 
@@ -79,7 +79,7 @@ oms_session_feats$DATEBEAT <- as.Date(oms_session_feats$DATEBEAT)
 
 weather_feats1 <- getSummarizedWeather("DEN", "2014-01-01", end_date = "2014-12-31", station_type = "airportCode", opt_all_columns = TRUE)
 weather_feats2 <- getSummarizedWeather("DEN", "2015-01-01", end_date = "2015-12-31", station_type = "airportCode", opt_all_columns = TRUE)
-weather_feats3 <- getSummarizedWeather("DEN", "2016-01-01", end_date = Sys.Date(), station_type = "airportCode", opt_all_columns = TRUE)
+weather_feats3 <- getSummarizedWeather("DEN", "2016-01-01", end_date = today, station_type = "airportCode", opt_all_columns = TRUE)
 weather_feats_temp <- rbind(weather_feats1, weather_feats2)
 colnames(weather_feats3) <- colnames(weather_feats_temp)
 weather_feats <- rbind(weather_feats_temp, weather_feats3)
@@ -172,13 +172,13 @@ citExpAllDays <- data.frame(date=as.Date(character()),
                             exp=numeric(),
                             reason=character(),
                             stringsAsFactors=FALSE)
-combined_feats_GT_test <- combined_feats_GT[combined_feats_GT$DATEBEAT == (Sys.Date() - 1),]
+combined_feats_GT_test <- combined_feats_GT[combined_feats_GT$DATEBEAT == (today - 1),]
 print(nrow(combined_feats_GT_test))
 print(nrow(combined_feats_GT))
 for ( i in 1:nrow(combined_feats_GT_test)){
   print(combined_feats_GT_test$DATEBEAT[i])
-  print((Sys.Date() - 1))
-  if(combined_feats_GT_test$DATEBEAT[i] == (Sys.Date() - 1)){
+  print((today - 1))
+  if(combined_feats_GT_test$DATEBEAT[i] == (today - 1)){
     date <- as.character(as.Date(combined_feats_GT_test$DATEBEAT[i]))
     beat <- as.character(combined_feats_GT_test$BEATNAME[i])
     traintest <- combined_feats_GT[combined_feats_GT$DATEBEAT <= combined_feats_GT_test$DATEBEAT[i] & combined_feats_GT$BEATTYPE == combined_feats_GT_test$BEATTYPE[i],]
@@ -241,7 +241,7 @@ for (r in 1:nrow(citExpAllDaystest)) {
 }
 
 write.table(citExpAllDaystest,
-    file = paste("/tmp/citExpEstimatesToday-",
+    file = paste("/tmp/citMarkEstimatesToday-",
         today,
         ".csv",
         sep=""),
