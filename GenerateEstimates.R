@@ -1,9 +1,9 @@
 # AB: util functions
-isInstalled <- function(package) {
+isInstalled <- function (package) {
   is.element(package, installed.packages()[,1])
 }
 
-LoadOrInstallLibraries <- function(packages) {
+LoadOrInstallLibraries <- function (packages) {
   for(package in packages) {
     if(!isInstalled(package)) {
       install.packages(package,repos="http://cran.rstudio.com/")
@@ -11,6 +11,7 @@ LoadOrInstallLibraries <- function(packages) {
     require(package,character.only=TRUE,quietly=TRUE)
   }
 }
+
 GetDBHandle <- function (ct) {
   drv <- JDBC("com.microsoft.sqlserver.jdbc.SQLServerDriver",
       "/opt/citysight-expectations/sqljdbc/enu/sqljdbc4.jar")
@@ -31,24 +32,39 @@ BuildConfig <- function (config, city) {
   return(list("server" = server, "uid" = uid, "pwd" = pwd, "db" = db))
 }
 
-LoadOrInstallLibraries(c("RJDBC", "randomForest", "prodlim", "yaml", "devtools", "futile.logger"))
+LoadOrInstallLibraries(c("argparser", "RJDBC", "randomForest", "prodlim", "yaml", "devtools", "futile.logger"))
 install_github("ozagordi/weatherData")
 library(weatherData)
 options(max.print=5)
 
-flog.appender(appender.file("/tmp/estimates.log"), "quiet")
-city <- "devdenver"
-config <- BuildConfig(yaml.load_file("/opt/citysight-expectations/config.yml"), city)
+parser <- arg_parser("Generate Citation Estimates")
+parser <- add_argument(parser, "date", help="date to generate estimates for")
+parser <- add_argument(parser, "city", help="label in config.yml for DB credentials")
+parser <- add_argument(parser, "targets", help="list of cities to write to")
+
+args <- parse_args(parser, commandArgs(trailingOnly=TRUE))
+today <- as.Date(args$date, "%Y-%m-%d")
+city <- args$city
+targets <- strsplit(args$targets, ",")[[1]]
+
+
+flog.appender(appender.file(paste("/tmp/estimates-", today, ".log", sep="")), "quiet")
+baseConfig <- yaml.load_file("/opt/citysight-expectations/config.yml")
+config <- BuildConfig(baseConfig, city)
 
 ## Connect to the database
 flog.info("Generating estimates for %s", city, name="quiet")
 dbhandle <- GetDBHandle(config)
-
+tableIdentifier <- paste(config$db, ".dbo.", sep="")
+writeTables <- list()
+for (t in 1:length(targets)) {
+  writeTables[[t]] <- paste(targets[[t]], ".dbo.", sep="")
+}
 
 # Query database to get features and combine into one frame
 ticketQuery <- paste("SELECT BADGENUMBER, OFFICERNAME, ISSUEDATE, BEATNAME, count(*) AS TICKETCOUNT FROM
     (SELECT I.BADGENUMBER,I.OFFICERNAME,CAST(I.ISSUEDATETIME AS DATE) AS ISSUEDATE, C.GPSBEAT AS BEATNAME
-    FROM ", config$db, ".dbo.ISSUANCE I JOIN ", config$db, ".dbo.CORRECTEDBEATS C
+    FROM ", tableIdentifier, "ISSUANCE I JOIN ", tableIdentifier, "CORRECTEDBEATS C
     ON I.TICKETNUMBER = C.TICKETNUMBER) A GROUP BY BADGENUMBER, OFFICERNAME, ISSUEDATE, BEATNAME", sep="")
 ticketcount <- dbGetQuery(dbhandle, ticketQuery)
 ticketcount$ISSUEDATE <- as.Date(ticketcount$ISSUEDATE)
@@ -56,7 +72,7 @@ ticketcount$ISSUEDATE <- as.Date(ticketcount$ISSUEDATE)
 featureQuery <- paste("SELECT O.OFFICERID AS BADGENUMBER, O.OFFICERNAME, CAST(O.DATETIME AS DATE) AS DATEBEAT,
     O.RECID AS SESSIONID, O.DATETIME, O.DATETIME2, D.TOTALLENGTH AS SESSIONLENGTH,
     D.PATROLLENGTH, D.SERVICELENGTH, D.OTHERLENGTH FROM ",
-    config$db, ".dbo.OMS_SESSION O JOIN ", config$db, ".dbo.DutyStatusFeats D on O.RECID = D.SESSIONID", sep="")
+    tableIdentifier, "OMS_SESSION O JOIN ", tableIdentifier, "DutyStatusFeats D on O.RECID = D.SESSIONID", sep="")
 oms_session_feats <- dbGetQuery(dbhandle, featureQuery)
 oms_session_feats$DATEBEAT <- as.Date(oms_session_feats$DATEBEAT)
 
@@ -64,7 +80,7 @@ weather_feats1 <- getSummarizedWeather("DEN", "2014-01-01", end_date = "2014-12-
     station_type = "airportCode", opt_all_columns = TRUE)
 weather_feats2 <- getSummarizedWeather("DEN", "2015-01-01", end_date = "2015-12-31",
     station_type = "airportCode", opt_all_columns = TRUE)
-weather_feats3 <- getSummarizedWeather("DEN", "2016-01-01", end_date = Sys.Date(),
+weather_feats3 <- getSummarizedWeather("DEN", "2016-01-01", end_date = today,
     station_type = "airportCode", opt_all_columns = TRUE)
 weather_feats_temp <- rbind(weather_feats1, weather_feats2)
 colnames(weather_feats3) <- colnames(weather_feats_temp)
@@ -150,10 +166,10 @@ combined_feats_GT$OFFICERNAME <- NULL
 
 
 # Add Estimate Rows
-PATROLLENGTH = 390
+PATROLLENGTH = 480
 SERVICELENGTH = 0
 OTHERLENGTH = 0
-SESSIONLENGTH = 390
+SESSIONLENGTH = 480
 
 allBeats <- c("AM1","AM2","AM3","AM4","PM1","PM2","PM3","PM4","PM5","PM6","PM7","PM8","PM9","PM10",
               "PM11","PM12","PM13","PM15","PM15",seq(1,16),seq(49,75))
@@ -161,16 +177,16 @@ allBeatTypes <- c(rep("AM",4),rep("PM",15),rep("W",14),rep("WLHS",2),rep("D",25)
 
 flog.info("Iterating over %d beats", length(allBeats), name="quiet")
 for(i in 1:length(allBeats)){
-  newrow <- c(as.character(Sys.Date()), SESSIONLENGTH, PATROLLENGTH, SERVICELENGTH, OTHERLENGTH,
-              weather_feats$Max_TemperatureF[weather_feats$Date == Sys.Date()],
-              weather_feats$Min_TemperatureF[weather_feats$Date == Sys.Date()],
-              weather_feats$Min_VisibilityMiles[weather_feats$Date == Sys.Date()],
-              weather_feats$Mean_Wind_SpeedMPH[weather_feats$Date == Sys.Date()],
-              weather_feats$PrecipitationIn[weather_feats$Date == Sys.Date()],
-              weather_feats$CloudCover[weather_feats$Date == Sys.Date()],
-              weather_feats$Events[weather_feats$Date == Sys.Date()],
-              allBeats[i], "-1", weekdays(Sys.Date()), format(Sys.Date(), "%m"),
-              ifelse(weekdays(Sys.Date())=="Sunday" | weekdays(Sys.Date())=="Saturday",1,0), allBeatTypes[i])
+  newrow <- c(as.character(today), SESSIONLENGTH, PATROLLENGTH, SERVICELENGTH, OTHERLENGTH,
+              weather_feats$Max_TemperatureF[weather_feats$Date == today],
+              weather_feats$Min_TemperatureF[weather_feats$Date == today],
+              weather_feats$Min_VisibilityMiles[weather_feats$Date == today],
+              weather_feats$Mean_Wind_SpeedMPH[weather_feats$Date == today],
+              weather_feats$PrecipitationIn[weather_feats$Date == today],
+              weather_feats$CloudCover[weather_feats$Date == today],
+              weather_feats$Events[weather_feats$Date == today],
+              allBeats[i], "-1", weekdays(today), format(today, "%m"),
+              ifelse(weekdays(today)=="Sunday" | weekdays(today)=="Saturday",1,0), allBeatTypes[i])
   combined_feats_GT <- rbind(combined_feats_GT,newrow)
 
 }
@@ -208,7 +224,7 @@ citExpAllDays <- data.frame(citDate=as.Date(character()),
                             citExp=numeric(),
                             citReason=character(),
                             stringsAsFactors=FALSE)
-combined_feats_GT_test <- combined_feats_GT[combined_feats_GT$DATEBEAT == (Sys.Date()),]
+combined_feats_GT_test <- combined_feats_GT[combined_feats_GT$DATEBEAT == (today),]
 
 print(nrow(combined_feats_GT_test))
 flog.info("Found %d features", nrow(combined_feats_GT_test), name="quiet")
@@ -217,7 +233,7 @@ print(nrow(combined_feats_GT))
 for ( i in 1:nrow(combined_feats_GT_test)){
   flog.info("Generating estimate#%s", i, name="quiet")
   print(combined_feats_GT_test$DATEBEAT[i])
-  if(combined_feats_GT_test$DATEBEAT[i] == Sys.Date()){
+  if(combined_feats_GT_test$DATEBEAT[i] == today){
     citDate <- as.character(as.Date(combined_feats_GT_test$DATEBEAT[i]))
     citBeat <- as.character(combined_feats_GT_test$BEATNAME[i])
     traintest <- combined_feats_GT[combined_feats_GT$DATEBEAT <=
@@ -270,6 +286,41 @@ combined_feats_GT$monthOfYear <- as.character(combined_feats_GT$monthOfYear)
 combined_feats_GT$isWeekend <- as.character(combined_feats_GT$isWeekend)
 combined_feats_GT$BEATTYPE <- as.character(combined_feats_GT$BEATTYPE)
 
-write.table(citExpAllDaystest,file="/opt/citysight-expectations/citExpEstimatesToday.csv",
-    row.names=FALSE, col.names=FALSE, sep=",", quote=FALSE)
+flog.info("Writing estimates data to table", name="quiet")
+
+queryValues <- list()
+for (r in 1:nrow(citExpAllDaystest)) {
+  queryValues[[r]] <- paste("('", citExpAllDaystest$DATE[r], "', '",
+                  citExpAllDaystest$BEAT[r], "', '",
+                  citExpAllDaystest$EXP[r], "', '",
+                  citExpAllDaystest$REASON[r], "'",
+        ")",
+      sep="")
+}
+
+write.table(citExpAllDaystest,
+    file = paste("/tmp/citExpEstimatesToday-",
+        today,
+        ".csv",
+        sep=""),
+    row.names=FALSE,
+    col.names=FALSE,
+    sep=",",
+    quote=FALSE)
+
+insertQueries <- list()
+for (q in 1:length(writeTables)) {
+  cfg <- BuildConfig(baseConfig, targets[[q]])
+  writeHandle <- GetDBHandle(cfg)
+
+  flog.info("Deleting estimates for yesterday %s", targets[[q]], name="quiet")
+  dbSendUpdate(writeHandle, paste("DELETE FROM ", writeTables[[q]], "CITATIONESTIMATESCONVERTED WHERE DATE='", today, "'", sep=""))
+
+  insertQuery <- paste("INSERT INTO ", writeTables[[q]], "CITATIONESTIMATESCONVERTED VALUES",
+      paste(queryValues, collapse=", "),
+      sep="")
+  dbSendUpdate(writeHandle, insertQuery)
+  flog.info("Wrote CITATIONESTIMATES to %s", targets[[q]], name="quiet")
+}
+
 flog.info("Done writing estimates for %s", city, "quiet")
