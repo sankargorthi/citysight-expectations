@@ -37,7 +37,7 @@ install_github("ozagordi/weatherData")
 library(weatherData)
 options(max.print=5)
 
-parser <- arg_parser("Generate Citation Estimates")
+parser <- arg_parser("Generate Mark Expectations")
 parser <- add_argument(parser, "date", help="date to generate estimates for")
 parser <- add_argument(parser, "city", help="label in config.yml for DB credentials")
 parser <- add_argument(parser, "targets", help="list of cities to write to")
