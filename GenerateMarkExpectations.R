@@ -202,7 +202,7 @@ for ( i in 1:nrow(combined_feats_GT_test)){
       exp <- as.numeric(predict(rf, test))
       citReasonframe <- as.data.frame(cbind(as.data.frame(importance(rf)),rownames(importance(rf))))
       names(citReasonframe) <- c('percentMSE', 'percentNodePurity', 'feature')
-      reason <- "Feature,percentMSE,percentNodePurity,ActualValue"
+      reason <- paste("Feature", "percentMSE", "percentNodePurity", "ActualValue", sep=":")
       flog.info("Found enough training data for random forest: %d", nrow(citReasonframe), name="quiet")
       for(j in 1:nrow(citReasonframe)) {
         reason <- paste(reason,";",citReasonframe$feature[j],":",citReasonframe$percentMSE[j],":"
