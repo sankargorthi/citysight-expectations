@@ -172,7 +172,7 @@ OTHERLENGTH = 0
 SESSIONLENGTH = 480
 
 allBeats <- c("AM1","AM2","AM3","AM4","PM1","PM2","PM3","PM4","PM5","PM6","PM7","PM8","PM9","PM10",
-              "PM11","PM12","PM13","PM15","PM15",seq(1,16),seq(49,75))
+              "PM11","PM12","PM13","PM14","PM15",seq(1,16),seq(49,75))
 allBeatTypes <- c(rep("AM",4),rep("PM",15),rep("W",14),rep("WLHS",2),rep("D",25),rep("DLHS",2))
 
 flog.info("Iterating over %d beats", length(allBeats), name="quiet")
@@ -256,7 +256,7 @@ for ( i in 1:nrow(combined_feats_GT_test)){
       citExp <- as.numeric(predict(rf, test))
       citReasonframe <-as.data.frame(cbind(as.data.frame(importance(rf)),rownames(importance(rf))))
       names(citReasonframe) <- c('percentMSE', 'percentNodePurity', 'feature')
-      citReason <- "Feature,percentMSE,percentNodePurity,ActualValue"
+      citReason <- paste("Feature", "percentMSE", "percentNodePurity", "ActualValue", sep=":")
       for( j in 1:nrow(citReasonframe)){
         flog.info("    Generating data for frame#%s", j, name="quiet")
         citReason <- paste(citReason,";",citReasonframe$feature[j],":",citReasonframe$percentMSE[j],":",
