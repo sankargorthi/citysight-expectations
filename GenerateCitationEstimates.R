@@ -70,6 +70,8 @@ featureQuery <- paste("SELECT O.OFFICERID AS BADGENUMBER, O.OFFICERNAME, CAST(O.
 oms_session_feats <- sqlQuery(dbhandle, featureQuery)
 oms_session_feats$DATEBEAT <- as.Date(oms_session_feats$DATEBEAT)
 
+odbcClose(dbhandle)
+
 weather_feats1 <- getSummarizedWeather("DEN", "2014-01-01", end_date = "2014-12-31",
     station_type = "airportCode", opt_all_columns = TRUE)
 weather_feats2 <- getSummarizedWeather("DEN", "2015-01-01", end_date = "2015-12-31",
@@ -316,6 +318,7 @@ for (q in 1:length(targets)) {
       sep="")
   sqlQuery(writeHandle, insertQuery)
   flog.info("Wrote CITATIONESTIMATES to %s", targets[[q]], name="quiet")
+  odbcClose(writeHandle)
 }
 
 flog.info("Done writing estimates for %s", city, "quiet")
