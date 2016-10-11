@@ -13,10 +13,8 @@ LoadOrInstallLibraries <- function (packages) {
 }
 
 GetDBHandle <- function (ct) {
-  drv <- JDBC("com.microsoft.sqlserver.jdbc.SQLServerDriver",
-      "/opt/citysight-expectations/sqljdbc/enu/sqljdbc4.jar")
-  connector <- paste("jdbc:sqlserver://", ct$server, sep="")
-  conn <- dbConnect(drv, connector, ct$uid, ct$pwd)
+  connector <- paste("driver={SQL Server}", ct$server, ct$db, ct$uid, ct$pwd, sep=";")
+  conn <- odbcDriverConnect(connector)
 
   return(conn)
 }
@@ -24,15 +22,15 @@ GetDBHandle <- function (ct) {
 BuildConfig <- function (config, city) {
   ct <- config[[city]]
 
-  server <- ct$server
-  uid <- ct$username
-  pwd <- ct$password
-  db <- ct$db
+  server <- paste("server", ct$server, sep="=")
+  uid <- paste("uid", ct$username, sep="=")
+  pwd <- paste("pwd", ct$password, sep="=")
+  db <- paste("database", ct$db, sep="=")
 
   return(list("server" = server, "uid" = uid, "pwd" = pwd, "db" = db))
 }
 
-LoadOrInstallLibraries(c("argparser", "RJDBC", "randomForest", "prodlim", "yaml", "devtools", "futile.logger"))
+LoadOrInstallLibraries(c("argparser", "RODBC", "randomForest", "prodlim", "yaml", "devtools", "futile.logger"))
 install_github("ozagordi/weatherData")
 library(weatherData)
 options(max.print=5)
@@ -55,25 +53,19 @@ config <- BuildConfig(baseConfig, city)
 ## Connect to the database
 flog.info("Generating estimates for %s", city, name="quiet")
 dbhandle <- GetDBHandle(config)
-tableIdentifier <- paste(config$db, ".dbo.", sep="")
-writeTables <- list()
-for (t in 1:length(targets)) {
-  writeTables[[t]] <- paste(targets[[t]], ".dbo.", sep="")
-}
 
 # Query database to get features and combine into one frame
 ticketQuery <- paste("SELECT BADGENUMBER, OFFICERNAME, ISSUEDATE, BEATNAME, count(*) AS TICKETCOUNT FROM
     (SELECT I.BADGENUMBER,I.OFFICERNAME,CAST(I.ISSUEDATETIME AS DATE) AS ISSUEDATE, C.GPSBEAT AS BEATNAME
-    FROM ", tableIdentifier, "ISSUANCE I JOIN ", tableIdentifier, "CORRECTEDBEATS C
+    FROM ISSUANCE I JOIN CORRECTEDBEATS C
     ON I.TICKETNUMBER = C.TICKETNUMBER) A GROUP BY BADGENUMBER, OFFICERNAME, ISSUEDATE, BEATNAME", sep="")
-ticketcount <- dbGetQuery(dbhandle, ticketQuery)
+ticketcount <- sqlQuery(dbhandle, ticketQuery)
 ticketcount$ISSUEDATE <- as.Date(ticketcount$ISSUEDATE)
 
 featureQuery <- paste("SELECT O.OFFICERID AS BADGENUMBER, O.OFFICERNAME, CAST(O.DATETIME AS DATE) AS DATEBEAT,
     O.RECID AS SESSIONID, O.DATETIME, O.DATETIME2, D.TOTALLENGTH AS SESSIONLENGTH,
-    D.PATROLLENGTH, D.SERVICELENGTH, D.OTHERLENGTH FROM ",
-    tableIdentifier, "OMS_SESSION O JOIN ", tableIdentifier, "DutyStatusFeats D on O.RECID = D.SESSIONID", sep="")
-oms_session_feats <- dbGetQuery(dbhandle, featureQuery)
+    D.PATROLLENGTH, D.SERVICELENGTH, D.OTHERLENGTH FROM OMS_SESSION O JOIN DutyStatusFeats D on O.RECID = D.SESSIONID", sep="")
+oms_session_feats <- sqlQuery(dbhandle, featureQuery)
 oms_session_feats$DATEBEAT <- as.Date(oms_session_feats$DATEBEAT)
 
 weather_feats1 <- getSummarizedWeather("DEN", "2014-01-01", end_date = "2014-12-31",
@@ -309,17 +301,17 @@ write.table(citExpAllDaystest,
     quote=FALSE)
 
 insertQueries <- list()
-for (q in 1:length(writeTables)) {
+for (q in 1:length(targets)) {
   cfg <- BuildConfig(baseConfig, targets[[q]])
   writeHandle <- GetDBHandle(cfg)
 
   flog.info("Deleting estimates for yesterday %s", targets[[q]], name="quiet")
-  dbSendUpdate(writeHandle, paste("DELETE FROM ", writeTables[[q]], "CITATIONESTIMATESCONVERTED WHERE DATE='", today, "'", sep=""))
+  sqlQuery(writeHandle, paste("DELETE FROM CITATIONESTIMATESCONVERTED WHERE DATE='", today, "'", sep=""))
 
-  insertQuery <- paste("INSERT INTO ", writeTables[[q]], "CITATIONESTIMATESCONVERTED VALUES",
+  insertQuery <- paste("INSERT INTO CITATIONESTIMATESCONVERTED VALUES",
       paste(queryValues, collapse=", "),
       sep="")
-  dbSendUpdate(writeHandle, insertQuery)
+  sqlQuery(writeHandle, insertQuery)
   flog.info("Wrote CITATIONESTIMATES to %s", targets[[q]], name="quiet")
 }
 
