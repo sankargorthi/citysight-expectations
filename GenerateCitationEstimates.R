@@ -36,18 +36,20 @@ library(weatherData)
 options(max.print=5)
 
 parser <- arg_parser("Generate Citation Estimates")
+parser <- add_argument(parser, "cwd", help="current working directory")
 parser <- add_argument(parser, "date", help="date to generate estimates for")
 parser <- add_argument(parser, "city", help="label in config.yml for DB credentials")
 parser <- add_argument(parser, "targets", help="list of cities to write to")
 
 args <- parse_args(parser, commandArgs(trailingOnly=TRUE))
+cwd <- args$cwd
 today <- as.Date(args$date, "%Y-%m-%d")
 city <- args$city
 targets <- strsplit(args$targets, ",")[[1]]
 
 
-flog.appender(appender.file(paste("/tmp/estimates-", today, ".log", sep="")), "quiet")
-baseConfig <- yaml.load_file("/opt/citysight-expectations/config.yml")
+flog.appender(appender.file(paste(cwd, "logs", paste("estimates-", today, ".log", sep=""), sep="\\")), "quiet")
+baseConfig <- yaml.load_file(paste(cwd, "config.yml", sep="\\"))
 config <- BuildConfig(baseConfig, city)
 
 ## Connect to the database
@@ -291,10 +293,11 @@ for (r in 1:nrow(citExpAllDaystest)) {
 }
 
 write.table(citExpAllDaystest,
-    file = paste("/tmp/citExpEstimatesToday-",
-        today,
-        ".csv",
-        sep=""),
+    file = paste(cwd, "logs",
+        paste("citExpEstimatesToday-",
+          today,
+          ".csv",
+          sep=""), sep="\\"),
     row.names=FALSE,
     col.names=FALSE,
     sep=",",
