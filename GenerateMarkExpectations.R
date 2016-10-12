@@ -13,10 +13,8 @@ LoadOrInstallLibraries <- function (packages) {
 }
 
 GetDBHandle <- function (ct) {
-  drv <- JDBC("com.microsoft.sqlserver.jdbc.SQLServerDriver",
-      "/opt/citysight-expectations/sqljdbc/enu/sqljdbc4.jar")
-  connector <- paste("jdbc:sqlserver://", ct$server, sep="")
-  conn <- dbConnect(drv, connector, ct$uid, ct$pwd)
+  connector <- paste("driver={SQL Server}", ct$server, ct$db, ct$uid, ct$pwd, sep=";")
+  conn <- odbcDriverConnect(connector)
 
   return(conn)
 }
@@ -24,62 +22,64 @@ GetDBHandle <- function (ct) {
 BuildConfig <- function (config, city) {
   ct <- config[[city]]
 
-  server <- ct$server
-  uid <- ct$username
-  pwd <- ct$password
-  db <- ct$db
+  server <- paste("server", ct$server, sep="=")
+  uid <- paste("uid", ct$username, sep="=")
+  pwd <- paste("pwd", ct$password, sep="=")
+  db <- paste("database", ct$db, sep="=")
 
   return(list("server" = server, "uid" = uid, "pwd" = pwd, "db" = db))
 }
 
-LoadOrInstallLibraries(c("argparser", "RJDBC", "randomForest", "prodlim", "yaml", "devtools", "futile.logger"))
+LoadOrInstallLibraries(c("argparser", "RODBC", "randomForest", "prodlim", "yaml", "devtools", "futile.logger"))
 install_github("ozagordi/weatherData")
 library(weatherData)
 options(max.print=5)
 
 parser <- arg_parser("Generate Mark Expectations")
+parser <- add_argument(parser, "cwd", help="current working directory")
 parser <- add_argument(parser, "date", help="date to generate estimates for")
 parser <- add_argument(parser, "city", help="label in config.yml for DB credentials")
 parser <- add_argument(parser, "targets", help="list of cities to write to")
 
 args <- parse_args(parser, commandArgs(trailingOnly=TRUE))
+cwd <- args$cwd
 today <- as.Date(args$date, "%Y-%m-%d")
 city <- args$city
 targets <- strsplit(args$targets, ",")[[1]]
 
 
-flog.appender(appender.file(paste("/tmp/mark-estimates-", today, ".log", sep="")), "quiet")
-baseConfig <- yaml.load_file("/opt/citysight-expectations/config.yml")
+flog.appender(appender.file(paste(cwd, "logs", paste("mark-estimates-", today, ".log", sep=""), sep="\\")), "quiet")
+baseConfig <- yaml.load_file(paste(cwd, "config.yml", sep="\\"))
 config <- BuildConfig(baseConfig, city)
 
 ## Connect to the database
 flog.info("Generating mark expectations for %s", city, name="quiet")
 dbhandle <- GetDBHandle(config)
-tableIdentifier <- paste(config$db, ".dbo.", sep="")
-writeTables <- list()
-for (t in 1:length(targets)) {
-  writeTables[[t]] <- paste(targets[[t]], ".dbo.", sep="")
-}
 
 # Query database to get features and combine into one frame
 markQuery <- paste("SELECT MARKEDDATE, SESSIONID, BEATNAME, count(*) AS MARKCOUNT FROM
 (SELECT CAST(T.MARKEDDATETIME AS DATE) AS MARKEDDATE, T.LICENSEPLATE, T.SESSIONID, C.GPSBEAT AS BEATNAME
-FROM ", tableIdentifier, "TIMING_ACTIVITY T JOIN ", tableIdentifier, "CORRECTEDMARKS
+FROM TIMING_ACTIVITY T JOIN CORRECTEDMARKS
 C ON T.LICENSEPLATE = C.LICENSEPLATE AND T.SESSIONID = C.SESSIONID) A
 GROUP BY SESSIONID, MARKEDDATE, BEATNAME", sep="")
-markcount <- dbGetQuery(dbhandle,markQuery)
+markcount <- sqlQuery(dbhandle,markQuery)
 markcount$MARKEDDATE <- as.Date(markcount$MARKEDDATE)
 
 featuresQuery <- paste("SELECT O.OFFICERID AS BADGENUMBER, O.OFFICERNAME, CAST(O.DATETIME AS DATE) AS DATEBEAT, O.RECID AS SESSIONID,
 O.DATETIME, O.DATETIME2, D.TOTALLENGTH AS SESSIONLENGTH,
 D.PATROLLENGTH, D.SERVICELENGTH, D.OTHERLENGTH
-FROM ", tableIdentifier, "OMS_SESSION O JOIN ", tableIdentifier, "DutyStatusFeats D on O.RECID = D.SESSIONID", sep="")
-oms_session_feats <- dbGetQuery(dbhandle, featuresQuery)
+FROM OMS_SESSION O JOIN DutyStatusFeats D on O.RECID = D.SESSIONID", sep="")
+oms_session_feats <- sqlQuery(dbhandle, featuresQuery)
 oms_session_feats$DATEBEAT <- as.Date(oms_session_feats$DATEBEAT)
 
-weather_feats1 <- getSummarizedWeather("DEN", "2014-01-01", end_date = "2014-12-31", station_type = "airportCode", opt_all_columns = TRUE)
-weather_feats2 <- getSummarizedWeather("DEN", "2015-01-01", end_date = "2015-12-31", station_type = "airportCode", opt_all_columns = TRUE)
-weather_feats3 <- getSummarizedWeather("DEN", "2016-01-01", end_date = today, station_type = "airportCode", opt_all_columns = TRUE)
+odbcClose(dbhandle)
+
+weather_feats1 <- getSummarizedWeather("DEN", "2014-01-01", end_date = "2014-12-31",
+    station_type = "airportCode", opt_all_columns = TRUE)
+weather_feats2 <- getSummarizedWeather("DEN", "2015-01-01", end_date = "2015-12-31",
+    station_type = "airportCode", opt_all_columns = TRUE)
+weather_feats3 <- getSummarizedWeather("DEN", "2016-01-01", end_date = today,
+    station_type = "airportCode", opt_all_columns = TRUE)
 weather_feats_temp <- rbind(weather_feats1, weather_feats2)
 colnames(weather_feats3) <- colnames(weather_feats_temp)
 weather_feats <- rbind(weather_feats_temp, weather_feats3)
@@ -246,28 +246,31 @@ for (r in 1:nrow(citExpAllDaystest)) {
 }
 
 write.table(citExpAllDaystest,
-    file = paste("/tmp/citMarkEstimatesToday-",
+    file = paste(cwd, "logs",
+        paste("citMarkEstimatesToday-",
         today,
         ".csv",
-        sep=""),
+        sep=""), sep="\\"
+        ),
     row.names=FALSE,
     col.names=FALSE,
     sep=",",
     quote=FALSE)
 
 insertQueries <- list()
-for (q in 1:length(writeTables)) {
+for (q in 1:length(targets)) {
   cfg <- BuildConfig(baseConfig, targets[[q]])
   writeHandle <- GetDBHandle(cfg)
 
   flog.info("Deleting mark estimates for yesterday %s", targets[[q]], name="quiet")
-  dbSendUpdate(writeHandle, paste("DELETE FROM ", writeTables[[q]], "MARKPREDICTIONCONVERTED WHERE DATE='", (today - 1), "'", sep=""))
+  sqlQuery(writeHandle, paste("DELETE FROM MARKPREDICTIONCONVERTED WHERE DATE='", (today - 1), "'", sep=""))
 
-  insertQuery <- paste("INSERT INTO ", writeTables[[q]], "MARKPREDICTIONCONVERTED VALUES",
+  insertQuery <- paste("INSERT INTO MARKPREDICTIONCONVERTED VALUES",
       paste(queryValues, collapse=", "),
       sep="")
-  dbSendUpdate(writeHandle, insertQuery)
+  sqlQuery(writeHandle, insertQuery)
   flog.info("Wrote MARKPREDICTIONS to %s", targets[[q]], name="quiet")
+  odbcClose(writeHandle)
 }
 
 flog.info("Done writing mark estimates for %s", city, "quiet")
