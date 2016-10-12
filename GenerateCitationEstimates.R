@@ -171,6 +171,8 @@ allBeats <- c("AM1","AM2","AM3","AM4","PM1","PM2","PM3","PM4","PM5","PM6","PM7",
               "PM11","PM12","PM13","PM14","PM15",seq(1,16),seq(49,75),"SAT","SUN")
 allBeatTypes <- c(rep("AM",4),rep("PM",15),rep("W",14),rep("WLHS",2),rep("D",25),rep("DLHS",2),"SAT","SUN")
 
+combined_feats_GT <- combined_feats_GT[combined_feats_GT$DATEBEAT!=today,]
+
 flog.info("Iterating over %d beats", length(allBeats), name="quiet")
 for(i in 1:length(allBeats)){
   newrow <- c(as.character(today), SESSIONLENGTH, PATROLLENGTH, SERVICELENGTH, OTHERLENGTH,
