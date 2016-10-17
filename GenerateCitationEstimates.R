@@ -30,10 +30,11 @@ BuildConfig <- function (config, city) {
   return(list("server" = server, "uid" = uid, "pwd" = pwd, "db" = db))
 }
 
-LoadOrInstallLibraries(c("argparser", "RODBC", "randomForest", "prodlim", "yaml", "devtools", "futile.logger"))
+LoadOrInstallLibraries(c("argparser", "RODBC", "randomForest", "prodlim", "yaml", "devtools", "futile.logger", "doMC"))
 install_github("ozagordi/weatherData")
 library(weatherData)
 options(max.print=5)
+registerDoMC()
 
 parser <- arg_parser("Generate Citation Estimates")
 parser <- add_argument(parser, "cwd", help="current working directory")
@@ -250,7 +251,8 @@ for ( i in 1:nrow(combined_feats_GT_test)){
       citExpAllDays <- rbind(citExpAllDays, newrow)
     } else {
       flog.info("Found training data for #%s with %s rows", i, nrow(train), name="quiet")
-      rf <- randomForest(TICKETCOUNT ~ ., data=train, ntree=20, importance=TRUE)
+      rf <- foreach(ntree=rep(4, 5), .combine=combine, .multicombine=TRUE, .packages='randomForest') %dopar%
+        randomForest(TICKETCOUNT ~ ., data=train, ntree=20, importance=TRUE)
       citExp <- as.numeric(predict(rf, test))
       citReasonframe <-as.data.frame(cbind(as.data.frame(importance(rf)),rownames(importance(rf))))
       names(citReasonframe) <- c('percentMSE', 'percentNodePurity', 'feature')
