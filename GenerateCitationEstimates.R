@@ -174,7 +174,8 @@ combined_feats_GT <- combined_feats_GT[combined_feats_GT$DATEBEAT!=today,]
 combined_feats_GT <- combined_feats_GT[ , which(names(combined_feats_GT) %in% c("DATEBEAT", "SESSIONLENGTH", "PATROLLENGTH", 
                                                                                 "SERVICELENGTH", "OTHERLENGTH", "Max_TemperatureF", 
                                                                                 "Min_TemperatureF", "Min_VisibilityMiles", 
-                                                                                "Mean_Wind_SpeedMPH", "PrecipitationIn", "CloudCover", 
+                                                                                "Mean_Wind_SpeedMPH", "PrecipitationIn", 
+                                                                                #"CloudCover", 
                                                                                 "Events", "BEATNAME", "TICKETCOUNT", "dayOfWeek", 
                                                                                 "monthOfYear", "isWeekend", "BEATTYPE"))]
 
@@ -186,7 +187,7 @@ for(i in 1:length(allBeats)){
               weather_feats$Min_VisibilityMiles[weather_feats$Date == today],
               weather_feats$Mean_Wind_SpeedMPH[weather_feats$Date == today],
               weather_feats$PrecipitationIn[weather_feats$Date == today],
-              weather_feats$CloudCover[weather_feats$Date == today],
+              #weather_feats$CloudCover[weather_feats$Date == today],
               weather_feats$Events[weather_feats$Date == today],
               allBeats[i], "-1", weekdays(today), format(today, "%m"),
               ifelse(weekdays(today)=="Sunday" | weekdays(today)=="Saturday",1,0), allBeatTypes[i])
@@ -206,7 +207,7 @@ combined_feats_GT$PATROLLENGTH <- as.numeric(combined_feats_GT$PATROLLENGTH)
 combined_feats_GT$SERVICELENGTH <- as.numeric(combined_feats_GT$SERVICELENGTH)
 combined_feats_GT$OTHERLENGTH <- as.numeric(combined_feats_GT$OTHERLENGTH)
 combined_feats_GT$SESSIONLENGTH <- as.numeric(combined_feats_GT$SESSIONLENGTH)
-combined_feats_GT$CloudCover <- as.numeric(combined_feats_GT$CloudCover)
+#combined_feats_GT$CloudCover <- as.numeric(combined_feats_GT$CloudCover)
 combined_feats_GT$TICKETCOUNT <- as.numeric(combined_feats_GT$TICKETCOUNT)
 combined_feats_GT$Events <- as.factor(combined_feats_GT$Events)
 combined_feats_GT$dayOfWeek <- as.factor(combined_feats_GT$dayOfWeek)
