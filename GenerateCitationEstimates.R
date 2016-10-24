@@ -109,7 +109,6 @@ combined_feats_GT$MST <- NULL
 combined_feats_GT$Min_Wind_SpeedMPH <- NULL
 combined_feats_GT$Max_Gust_SpeedMPH <- NULL
 combined_feats_GT$Max_Wind_SpeedMPH <- NULL
-combined_feats_GT$Max_Gust_SpeedMPH <- NULL
 combined_feats_GT$Mean_TemperatureF <- NULL
 combined_feats_GT$Mean_VisibilityMiles <- NULL
 combined_feats_GT$Max_VisibilityMiles <- NULL
@@ -126,7 +125,6 @@ weather_feats$Mean_Sea_Level_PressureIn <- NULL
 weather_feats$WindDirDegrees <- NULL
 weather_feats$MST <- NULL
 weather_feats$Min_Wind_SpeedMPH <- NULL
-weather_feats$Max_Gust_SpeedMPH <- NULL
 weather_feats$Max_Wind_SpeedMPH <- NULL
 weather_feats$Max_Gust_SpeedMPH <- NULL
 weather_feats$Mean_TemperatureF <- NULL
