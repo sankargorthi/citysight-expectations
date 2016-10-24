@@ -171,9 +171,12 @@ allBeatTypes <- c(rep("AM",4),rep("PM",15),rep("W",14),rep("WLHS",2),rep("D",25)
 
 combined_feats_GT <- combined_feats_GT[combined_feats_GT$DATEBEAT!=today,]
 
-combined_feats_GT <- combined_feats_GT[ , which(names(combined_feats_GT) %in% c(DATEBEAT, SESSIONLENGTH, PATROLLENGTH, SERVICELENGTH, OTHERLENGTH, Max_TemperatureF, Min_TemperatureF, 
-                       Min_VisibilityMiles, Mean_Wind_SpeedMPH, PrecipitationIn, CloudCover, Events, BEATNAME, TICKETCOUNT, 
-                       dayOfWeek, monthOfYear, isWeekend, BEATTYPE))]
+combined_feats_GT <- combined_feats_GT[ , which(names(combined_feats_GT) %in% c("DATEBEAT", "SESSIONLENGTH", "PATROLLENGTH", 
+                                                                                "SERVICELENGTH", "OTHERLENGTH", "Max_TemperatureF", 
+                                                                                "Min_TemperatureF", "Min_VisibilityMiles", 
+                                                                                "Mean_Wind_SpeedMPH", "PrecipitationIn", "CloudCover", 
+                                                                                "Events", "BEATNAME", "TICKETCOUNT", "dayOfWeek", 
+                                                                                "monthOfYear", "isWeekend", "BEATTYPE"))]
 
 flog.info("Iterating over %d beats", length(allBeats), name="quiet")
 for(i in 1:length(allBeats)){
