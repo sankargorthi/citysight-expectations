@@ -74,7 +74,7 @@ odbcClose(dbhandle)
 
 weather_feats1 <- getSummarizedWeather("DEN", "2014-01-01", end_date = "2014-12-31", station_type = "airportCode", opt_all_columns = TRUE)
 weather_feats2 <- getSummarizedWeather("DEN", "2015-01-01", end_date = "2015-12-31", station_type = "airportCode", opt_all_columns = TRUE)
-weather_feats3 <- getSummarizedWeather("DEN", "2016-01-01", end_date = Sys.Date(), station_type = "airportCode", opt_all_columns = TRUE)
+weather_feats3 <- getSummarizedWeather("DEN", "2016-01-01", end_date = today, station_type = "airportCode", opt_all_columns = TRUE)
 weather_feats_temp <- rbind(weather_feats1, weather_feats2)
 colnames(weather_feats3) <- colnames(weather_feats_temp)
 weather_feats <- rbind(weather_feats_temp, weather_feats3)
@@ -179,7 +179,7 @@ x <- x[order(x$DATEBEAT),]
 x <- (x[x$TICKETCOUNT>7,])
 combined_feats_GT <- x
 
-combined_feats_GT <- combined_feats_GT[combined_feats_GT$DATEBEAT != (Sys.Date()),]
+combined_feats_GT <- combined_feats_GT[combined_feats_GT$DATEBEAT != today,]
 
 
 # Add Estimate Rows
@@ -202,11 +202,11 @@ combined_feats_GT[,12] <- as.character(combined_feats_GT[,12])
 
 
 for(i in 1:length(allBeats)){
-  newrow <- c(as.character(Sys.Date()), "-1", SESSIONLENGTH, PATROLLENGTH, SERVICELENGTH,
-              weather_feats$PrecipitationIn[weather_feats$Date == Sys.Date()],
-              weather_feats$Events[weather_feats$Date == Sys.Date()],
-              allBeats[i], weekdays(Sys.Date()), format(Sys.Date(), "%m"),
-              ifelse(weekdays(Sys.Date())=="Sunday" | weekdays(Sys.Date())=="Saturday",1,0), allBeatTypes[i])
+  newrow <- c(as.character(today), "-1", SESSIONLENGTH, PATROLLENGTH, SERVICELENGTH,
+              weather_feats$PrecipitationIn[weather_feats$Date == today],
+              weather_feats$Events[weather_feats$Date == today],
+              allBeats[i], weekdays(today), format(today, "%m"),
+              ifelse(weekdays(today)=="Sunday" | weekdays(today)=="Saturday",1,0), allBeatTypes[i])
   combined_feats_GT <- rbind(combined_feats_GT,newrow)
 }
 
@@ -231,15 +231,15 @@ citExpAllDays <- data.frame(citDate=as.Date(character()),
                             citExp=numeric(),
                             citReason=character(),
                             stringsAsFactors=FALSE)
-combined_feats_GT_test <- combined_feats_GT[combined_feats_GT$DATEBEAT == (Sys.Date()),]
+combined_feats_GT_test <- combined_feats_GT[combined_feats_GT$DATEBEAT == today,]
 
 print(nrow(combined_feats_GT_test))
 
 print(nrow(combined_feats_GT))
 for ( i in 1:nrow(combined_feats_GT_test)){
   print(combined_feats_GT_test$DATEBEAT[i])
-  print(Sys.Date())
-  if(combined_feats_GT_test$DATEBEAT[i] == Sys.Date()){
+  print(today)
+  if(combined_feats_GT_test$DATEBEAT[i] == today){
     citDate <- as.character(as.Date(combined_feats_GT_test$DATEBEAT[i]))
     citBeat <- as.character(combined_feats_GT_test$BEATNAME[i])
     traintest <- combined_feats_GT[combined_feats_GT$DATEBEAT <= combined_feats_GT_test$DATEBEAT[i] & combined_feats_GT$BEATTYPE == combined_feats_GT_test$BEATTYPE[i],]
@@ -289,6 +289,8 @@ combined_feats_GT$monthOfYear <- as.character(combined_feats_GT$monthOfYear)
 combined_feats_GT$isWeekend <- as.character(combined_feats_GT$isWeekend)
 combined_feats_GT$BEATTYPE <- as.character(combined_feats_GT$BEATTYPE)
 
+print(citExpAllDaystest)
+  
 flog.info("Writing estimates data to table", name="quiet")
 
 queryValues <- list()
