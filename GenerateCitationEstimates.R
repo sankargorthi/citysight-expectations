@@ -268,6 +268,9 @@ for ( i in 1:nrow(combined_feats_GT_test)){
       }
       
       newrow <- data.frame(citDate=citDate,citBeat=citBeat,citExp=citExp,citReason=citReason)
+      print(as.character(combined_feats_GT_test$BEATNAME[i]))
+      print(citBeat)
+      print(citExp)
       citExpAllDays <- rbind(citExpAllDays, newrow)
     }
   }
@@ -288,8 +291,6 @@ combined_feats_GT$dayOfWeek <- as.character(combined_feats_GT$dayOfWeek)
 combined_feats_GT$monthOfYear <- as.character(combined_feats_GT$monthOfYear)
 combined_feats_GT$isWeekend <- as.character(combined_feats_GT$isWeekend)
 combined_feats_GT$BEATTYPE <- as.character(combined_feats_GT$BEATTYPE)
-
-print(citExpAllDaystest)
   
 flog.info("Writing estimates data to table", name="quiet")
 
