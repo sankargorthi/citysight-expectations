@@ -264,7 +264,7 @@ for ( i in 1:nrow(combined_feats_GT_test)){
       for( j in 1:nrow(citReasonframe)){
         citReason <- paste(citReason,";",citReasonframe$feature[j],":",citReasonframe$percentMSE[j],":"
                            ,citReasonframe$percentNodePurity[j],":",
-                           combined_feats_GT[i,grep(paste("^",citReasonframe$feature[j],"$",sep=""), names(combined_feats_GT))],sep="")
+                           combined_feats_GT_test[i,grep(paste("^",citReasonframe$feature[j],"$",sep=""), names(combined_feats_GT_test))],sep="")
       }
       
       newrow <- data.frame(citDate=citDate,citBeat=citBeat,citExp=citExp,citReason=citReason)
