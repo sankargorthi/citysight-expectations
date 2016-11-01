@@ -197,6 +197,7 @@ combined_feats_GT[,3] <- as.character(combined_feats_GT[,3])
 combined_feats_GT[,4] <- as.character(combined_feats_GT[,4])
 combined_feats_GT[,5] <- as.character(combined_feats_GT[,5])
 combined_feats_GT[,6] <- as.character(combined_feats_GT[,6])
+combined_feats_GT[,8] <- as.character(combined_feats_GT[,8])
 combined_feats_GT[,12] <- as.character(combined_feats_GT[,12])
 
 
