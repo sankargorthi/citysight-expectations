@@ -189,7 +189,7 @@ OTHERLENGTH = 0
 SESSIONLENGTH = 480
 
 allBeats <- c("AM1","AM2","AM3","AM4","PM1","PM2","PM3","PM4","PM5","PM6","PM7","PM8","PM9","PM10",
-              "PM11","PM12","PM13","PM14","PM15",seq(1,16),seq(49,75),"SAT","SUN")
+              "PM11","PM12","PM13","PM14","PM15",as.character(seq(1,16)),as.character(seq(49,75)),"SAT","SUN")
 allBeatTypes <- c(rep("AM",4),rep("PM",15),rep("W",16),rep("D",27),"SAT","SUN")
 
 combined_feats_GT[,2] <- as.character(combined_feats_GT[,2])
@@ -268,9 +268,9 @@ for ( i in 1:nrow(combined_feats_GT_test)){
       }
       
       newrow <- data.frame(citDate=citDate,citBeat=citBeat,citExp=citExp,citReason=citReason)
-      print(as.character(combined_feats_GT_test$BEATNAME[i]))
-      print(citBeat)
-      print(citExp)
+      flog.info(as.character(combined_feats_GT_test$BEATNAME[i]))
+      flog.info(citBeat)
+      flog.info(citExp)
       citExpAllDays <- rbind(citExpAllDays, newrow)
     }
   }
