@@ -30,7 +30,7 @@ BuildConfig <- function (config, city) {
   return(list("server" = server, "uid" = uid, "pwd" = pwd, "db" = db))
 }
 
-LoadOrInstallLibraries(c("argparser", "RODBC", "randomForest", "prodlim", "yaml", "devtools", "futile.logger", "data.table"))
+LoadOrInstallLibraries(c("argparser", "RODBC", "randomForest", "prodlim", "yaml", "devtools", "futile.logger", "data.table", "plyr"))
 install_github("ozagordi/weatherData")
 library(weatherData)
 options(max.print=5)
