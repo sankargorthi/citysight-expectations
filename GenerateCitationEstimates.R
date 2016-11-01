@@ -268,9 +268,9 @@ for ( i in 1:nrow(combined_feats_GT_test)){
       }
       
       newrow <- data.frame(citDate=citDate,citBeat=citBeat,citExp=citExp,citReason=citReason)
-      flog.info(as.character(combined_feats_GT_test$BEATNAME[i]))
-      flog.info(citBeat)
-      flog.info(citExp)
+      flog.info(as.character(combined_feats_GT_test$BEATNAME[i]), name="quiet")
+      flog.info(citBeat, name="quiet")
+      flog.info(citExp, name="quiet")
       citExpAllDays <- rbind(citExpAllDays, newrow)
     }
   }
