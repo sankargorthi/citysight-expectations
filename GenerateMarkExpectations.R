@@ -162,6 +162,7 @@ days <- seq(min(as.Date(combined_feats_GT$DATEBEAT)),to = max(as.Date(combined_f
 
 
 combined_feats_GT <- combined_feats_GT[combined_feats_GT$DATEBEAT!=today,]
+combined_feats_GT[] <- lapply(combined_feats_GT, as.character)
 for(i in 1:length(allBeats)){
   newrow <- c(as.character(today), SESSIONLENGTH, PATROLLENGTH, SERVICELENGTH,
               #as.numeric(as.vector(combined_feats_GT$PrecipitationIn[combined_feats_GT$DATEBEAT == today])[1]),
