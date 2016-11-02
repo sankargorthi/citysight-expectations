@@ -204,8 +204,8 @@ combined_feats_GT[,12] <- as.character(combined_feats_GT[,12])
 
 for(i in 1:length(allBeats)){
   newrow <- c(as.character(today), "-1", SESSIONLENGTH, PATROLLENGTH, SERVICELENGTH,
-              ifelse(length(weather_feats$PrecipitationIn[weather_feats$Date == days[today]]) != 0, weather_feats$PrecipitationIn[weather_feats$Date == days[today]], weather_feats$PrecipitationIn[weather_feats$Date == max(weather_feats$Date[weather_feats$Date <= days[today]])]),
-        ifelse(length(weather_feats$Events[weather_feats$Date == days[today]]) != 0, weather_feats$Events[weather_feats$Date == days[today]], weather_feats$Events[weather_feats$Date == max(weather_feats$Date[weather_feats$Date <= days[today]])]),
+              ifelse(length(weather_feats$PrecipitationIn[weather_feats$Date == today]) != 0, weather_feats$PrecipitationIn[weather_feats$Date == today], weather_feats$PrecipitationIn[weather_feats$Date == max(weather_feats$Date[weather_feats$Date <= today])]),
+        ifelse(length(weather_feats$Events[weather_feats$Date == today]) != 0, weather_feats$Events[weather_feats$Date == today], weather_feats$Events[weather_feats$Date == max(weather_feats$Date[weather_feats$Date <= today])]),
               allBeats[i], weekdays(today), format(today, "%m"),
               ifelse(weekdays(today)=="Sunday" | weekdays(today)=="Saturday",1,0), allBeatTypes[i])
   combined_feats_GT <- rbind(combined_feats_GT,newrow)
