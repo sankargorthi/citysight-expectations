@@ -75,11 +75,11 @@ oms_session_feats$DATEBEAT <- as.Date(oms_session_feats$DATEBEAT)
 odbcClose(dbhandle)
 
 weather_feats1 <- getSummarizedWeather("DEN", "2014-01-01", end_date = "2014-12-31",
-    station_type = "airportCode", opt_all_columns = TRUE)
+                                       station_type = "airportCode", opt_all_columns = TRUE)
 weather_feats2 <- getSummarizedWeather("DEN", "2015-01-01", end_date = "2015-12-31",
-    station_type = "airportCode", opt_all_columns = TRUE)
+                                       station_type = "airportCode", opt_all_columns = TRUE)
 weather_feats3 <- getSummarizedWeather("DEN", "2016-01-01", end_date = today,
-    station_type = "airportCode", opt_all_columns = TRUE)
+                                       station_type = "airportCode", opt_all_columns = TRUE)
 weather_feats_temp <- rbind(weather_feats1, weather_feats2)
 colnames(weather_feats3) <- colnames(weather_feats_temp)
 weather_feats <- rbind(weather_feats_temp, weather_feats3)
@@ -109,31 +109,23 @@ combined_feats_GT$WindDirDegrees <- NULL
 combined_feats_GT$MST <- NULL
 combined_feats_GT$Min_Wind_SpeedMPH <- NULL
 combined_feats_GT$Max_Gust_SpeedMPH <- NULL
+combined_feats_GT$BADGENUMBER <- NULL
+combined_feats_GT$OFFICERNAME <- NULL
+combined_feats_GT$Max_Wind_SpeedMPH <- NULL
+combined_feats_GT$Mean_TemperatureF <- NULL
+combined_feats_GT$Mean_VisibilityMiles <- NULL
+combined_feats_GT$Max_VisibilityMiles <- NULL
+combined_feats_GT$Min_VisibilityMiles <- NULL
+combined_feats_GT$CloudCover <- NULL
+combined_feats_GT$OTHERLENGTH <- NULL
+combined_feats_GT$Max_TemperatureF <- NULL
+combined_feats_GT$Min_TemperatureF <- NULL
+combined_feats_GT$Mean_Wind_SpeedMPH <- NULL
+combined_feats_GT$EAT <- NULL
 
 combined_feats_GT$dayOfWeek <- weekdays(combined_feats_GT$DATEBEAT)
 combined_feats_GT$monthOfYear <- format(combined_feats_GT$DATEBEAT, "%m")
 combined_feats_GT$isWeekend <- factor(ifelse(combined_feats_GT$dayOfWeek=="Sunday" | combined_feats_GT$dayOfWeek=="Saturday",1,0))
-
-# Convert column types to factor/numeric as needed
-combined_feats_GT$Max_TemperatureF <- as.numeric(combined_feats_GT$Max_TemperatureF)
-combined_feats_GT$Min_TemperatureF <- as.numeric(combined_feats_GT$Min_TemperatureF)
-combined_feats_GT$Mean_TemperatureF <- as.numeric(combined_feats_GT$Mean_TemperatureF)
-combined_feats_GT$Max_VisibilityMiles <- as.numeric(combined_feats_GT$Max_VisibilityMiles)
-combined_feats_GT$Min_VisibilityMiles <- as.numeric(combined_feats_GT$Min_VisibilityMiles)
-combined_feats_GT$Mean_VisibilityMiles <- as.numeric(combined_feats_GT$Mean_VisibilityMiles)
-combined_feats_GT$Max_Wind_SpeedMPH <- as.numeric(combined_feats_GT$Max_Wind_SpeedMPH)
-combined_feats_GT$Mean_Wind_SpeedMPH <- as.numeric(combined_feats_GT$Mean_Wind_SpeedMPH)
-
-combined_feats_GT$PrecipitationIn <- as.numeric(combined_feats_GT$PrecipitationIn)
-combined_feats_GT$PATROLLENGTH <- as.numeric(combined_feats_GT$PATROLLENGTH)
-combined_feats_GT$SERVICELENGTH <- as.numeric(combined_feats_GT$SERVICELENGTH)
-combined_feats_GT$OTHERLENGTH <- as.numeric(combined_feats_GT$OTHERLENGTH)
-combined_feats_GT$SESSIONLENGTH <- as.numeric(combined_feats_GT$SESSIONLENGTH)
-combined_feats_GT$CloudCover <- as.numeric(combined_feats_GT$CloudCover)
-combined_feats_GT$Events <- as.factor(combined_feats_GT$Events)
-combined_feats_GT$dayOfWeek <- as.factor(combined_feats_GT$dayOfWeek)
-combined_feats_GT$monthOfYear <- as.factor(combined_feats_GT$monthOfYear)
-combined_feats_GT$BEATNAME <- as.factor(combined_feats_GT$BEATNAME)
 combined_feats_GT$BEATTYPE <- "----"
 combined_feats_GT$BEATTYPE[grep("SAT",combined_feats_GT$BEATNAME, ignore.case = TRUE, value=FALSE)] <- "SAT"
 combined_feats_GT$BEATTYPE[grep("SUN",combined_feats_GT$BEATNAME, ignore.case = TRUE, value=FALSE)] <- "SUN"
@@ -144,21 +136,9 @@ combined_feats_GT$BEATTYPE[as.numeric(as.character(combined_feats_GT$BEATNAME))<
 combined_feats_GT$BEATTYPE[as.numeric(as.character(combined_feats_GT$BEATNAME))==15 | as.numeric(as.character(combined_feats_GT$BEATNAME))==16] <- "WLHS"
 combined_feats_GT$BEATTYPE[as.numeric(as.character(combined_feats_GT$BEATNAME))>=49 & as.numeric(as.character(combined_feats_GT$BEATNAME))<=73] <- "D"
 combined_feats_GT$BEATTYPE[as.numeric(as.character(combined_feats_GT$BEATNAME))==74 | as.numeric(as.character(combined_feats_GT$BEATNAME))==75] <- "DLHS"
-combined_feats_GT$BEATTYPE <- as.factor(combined_feats_GT$BEATTYPE)
 
 #Removing deprecated beats and remove BEATNAME field (too many factors for random forest)
 combined_feats_GT <- combined_feats_GT[!(combined_feats_GT$BEATTYPE=="----"),]
-
-combined_feats_GT$BADGENUMBER <- NULL
-combined_feats_GT$OFFICERNAME <- NULL
-combined_feats_GT$Max_Wind_SpeedMPH <- NULL
-#combined_feats_GT$Max_Gust_SpeedMPH <- NULL
-combined_feats_GT$Mean_TemperatureF <- NULL
-combined_feats_GT$Mean_VisibilityMiles <- NULL
-combined_feats_GT$Max_VisibilityMiles <- NULL
-weather_feats$Min_VisibilityMiles[is.na(weather_feats$Min_VisibilityMiles)] <- -1
-weather_feats$Max_VisibilityMiles[is.na(weather_feats$Min_VisibilityMiles)] <- -1
-weather_feats$Mean_VisibilityMiles[is.na(weather_feats$Min_VisibilityMiles)] <- -1
 
 
 # Remove incomplete cases from both data frames
@@ -166,22 +146,71 @@ do.call(data.frame,lapply(combined_feats_GT, function(x) replace(x, is.infinite(
 combined_feats_GT <- combined_feats_GT[complete.cases(combined_feats_GT),]
 combined_feats_GT <- combined_feats_GT[combined_feats_GT$SESSIONLENGTH<1440,]
 
+#Set Length variables and create rows for today
+PATROLLENGTH = 480
+SERVICELENGTH = 0
+SESSIONLENGTH = 480
 
-citExpAllDays <- data.frame(date=as.Date(character()),
-                            beat=character(),
-                            exp=numeric(),
-                            reason=character(),
+allBeats <- c("AM1","AM2","AM3","AM4","PM1","PM2","PM3","PM4","PM5","PM6","PM7","PM8","PM9","PM10",
+              "PM11","PM12","PM13","PM14","PM15",seq(1,16),seq(49,75),"SAT","SUN")
+allBeatTypes <- c(rep("AM",4),rep("PM",15),rep("W",14),rep("WLHS",2),rep("D",25),rep("DLHS",2),"SAT","SUN")
+
+#days <- seq(min(as.Date(combined_feats_GT$DATEBEAT)),to = max(as.Date(combined_feats_GT$DATEBEAT)), by='days')
+#days <- seq(min(as.Date("2015-01-01")),to = max(as.Date("2015-12-31")), by='days')
+days <- seq(min(as.Date(combined_feats_GT$DATEBEAT)),to = max(as.Date(combined_feats_GT$DATEBEAT)), by='days')
+#days <- seq(max(as.Date(combined_feats_GT$DATEBEAT)),to = max(as.Date(combined_feats_GT$DATEBEAT)), by='days')
+
+
+combined_feats_GT <- combined_feats_GT[combined_feats_GT$DATEBEAT!=today,]
+for(i in 1:length(allBeats)){
+  newrow <- c(as.character(today), SESSIONLENGTH, PATROLLENGTH, SERVICELENGTH,
+              #as.numeric(as.vector(combined_feats_GT$PrecipitationIn[combined_feats_GT$DATEBEAT == today])[1]),
+              #as.character(as.vector(combined_feats_GT$Events[combined_feats_GT$DATEBEAT == today])[1]),
+              #weather_feats$PrecipitationIn[weather_feats$Date == today],
+              #weather_feats$Events[weather_feats$Date == today],
+              ifelse(length(weather_feats$PrecipitationIn[weather_feats$Date == today]) != 0, weather_feats$PrecipitationIn[weather_feats$Date == today], weather_feats$PrecipitationIn[weather_feats$Date == max(weather_feats$Date[weather_feats$Date <= today])]),
+              ifelse(length(weather_feats$Events[weather_feats$Date == today]) != 0, weather_feats$Events[weather_feats$Date == today], weather_feats$Events[weather_feats$Date == max(weather_feats$Date[weather_feats$Date <= today])]),
+              as.character(allBeats[i]), "-1", weekdays(today), format(today, "%m"),
+              ifelse(weekdays(today)=="Sunday" | weekdays(today)=="Saturday",1,0), allBeatTypes[i])
+  # print(newrow)
+  # print("-----------------------")
+  # print(newrow[7])
+  combined_feats_GT <- rbind(combined_feats_GT,newrow)
+  
+}
+
+combined_feats_GT$BEATTYPE <- as.factor(combined_feats_GT$BEATTYPE)
+combined_feats_GT$PrecipitationIn <- as.numeric(combined_feats_GT$PrecipitationIn)
+combined_feats_GT$PATROLLENGTH <- as.numeric(combined_feats_GT$PATROLLENGTH)
+combined_feats_GT$SERVICELENGTH <- as.numeric(combined_feats_GT$SERVICELENGTH)
+combined_feats_GT$SESSIONLENGTH <- as.numeric(combined_feats_GT$SESSIONLENGTH)
+combined_feats_GT$MARKCOUNT <- as.numeric(combined_feats_GT$MARKCOUNT)
+combined_feats_GT$Events <- as.factor(combined_feats_GT$Events)
+combined_feats_GT$dayOfWeek <- as.factor(combined_feats_GT$dayOfWeek)
+combined_feats_GT$monthOfYear <- as.factor(combined_feats_GT$monthOfYear)
+combined_feats_GT$BEATNAME <- as.factor(combined_feats_GT$BEATNAME)
+combined_feats_GT$DATEBEAT <- as.Date(combined_feats_GT$DATEBEAT)
+combined_feats_GT$isWeekend <- as.factor(combined_feats_GT$isWeekend)
+
+markExpAllDays <- data.frame(markDate=as.Date(character()),
+                            markBeat=character(),
+                            markExp=numeric(),
+                            markReason=character(),
                             stringsAsFactors=FALSE)
-combined_feats_GT_test <- combined_feats_GT[combined_feats_GT$DATEBEAT == (today - 1),]
+
+
+
+combined_feats_GT_test <- combined_feats_GT[combined_feats_GT$DATEBEAT == today,]
 print(nrow(combined_feats_GT_test))
 print(nrow(combined_feats_GT))
-flog.info("Found %d combined rows for marks", nrow(combined_feats_GT_test), name="quiet")
+#flog.info("Found %d combined rows for marks", nrow(combined_feats_GT_test), name="quiet")
+
 for ( i in 1:nrow(combined_feats_GT_test)){
   print(combined_feats_GT_test$DATEBEAT[i])
-  print((today - 1))
-  flog.info("Generating training data #%d", i, name="quiet")
-  flog.info("Current datebeat: %s", combined_feats_GT_test$DATEBEAT[i], name="quiet")
-  if(combined_feats_GT_test$DATEBEAT[i] == (today - 1)){
+  #print(today)
+  #flog.info("Generating training data #%d", i, name="quiet")
+  #flog.info("Current datebeat: %s", combined_feats_GT_test$DATEBEAT[i], name="quiet")
+  if(combined_feats_GT_test$DATEBEAT[i] == today){
     date <- as.character(as.Date(combined_feats_GT_test$DATEBEAT[i]))
     beat <- as.character(combined_feats_GT_test$BEATNAME[i])
     traintest <- combined_feats_GT[combined_feats_GT$DATEBEAT <= combined_feats_GT_test$DATEBEAT[i] & combined_feats_GT$BEATTYPE == combined_feats_GT_test$BEATTYPE[i],]
@@ -190,40 +219,41 @@ for ( i in 1:nrow(combined_feats_GT_test)){
     testall <- traintest[traintest$DATEBEAT == combined_feats_GT_test$DATEBEAT[i],]
     test <- testall[row.match(combined_feats_GT_test[i,],testall),]
     if (nrow(train) < 100) {
-      flog.info("Found too little training data", name="quiet")
+      #flog.info("Found too little training data", name="quiet")
       date <- as.character(as.Date(combined_feats_GT_test$DATEBEAT[i]))
       beat <- as.character(combined_feats_GT_test$BEATNAME[i])
       exp <- -1
       reason <- "Insufficient Data"
       newrow <- data.frame(date=date,beat=beat,exp=exp,reason=reason)
-      citExpAllDays <- rbind(citExpAllDays, newrow)
+      markExpAllDays <- rbind(markExpAllDays, newrow)
     } else {
       rf <- randomForest(MARKCOUNT ~ ., data=train, ntree=20, importance=TRUE)
       exp <- as.numeric(predict(rf, test))
-      citReasonframe <- as.data.frame(cbind(as.data.frame(importance(rf)),rownames(importance(rf))))
-      names(citReasonframe) <- c('percentMSE', 'percentNodePurity', 'feature')
+      print(exp)
+      markReasonframe <- as.data.frame(cbind(as.data.frame(importance(rf)),rownames(importance(rf))))
+      names(markReasonframe) <- c('percentMSE', 'percentNodePurity', 'feature')
       reason <- paste("Feature", "percentMSE", "percentNodePurity", "ActualValue", sep=":")
-      flog.info("Found enough training data for random forest: %d", nrow(citReasonframe), name="quiet")
-      for(j in 1:nrow(citReasonframe)) {
-        reason <- paste(reason,";",citReasonframe$feature[j],":",citReasonframe$percentMSE[j],":"
-            ,citReasonframe$percentNodePurity[j],":",
-            combined_feats_GT[i,grep(paste("^",citReasonframe$feature[j],"$",sep=""),
-            names(combined_feats_GT))],sep="")
+      #flog.info("Found enough training data for random forest: %d", nrow(markReasonframe), name="quiet")
+      for(j in 1:nrow(markReasonframe)) {
+        reason <- paste(reason,";",markReasonframe$feature[j],":",markReasonframe$percentMSE[j],":"
+                        ,markReasonframe$percentNodePurity[j],":",
+                        combined_feats_GT_test[i,grep(paste("^",markReasonframe$feature[j],"$",sep=""),
+                                                 names(combined_feats_GT_test))],sep="")
       }
-
+      
       newrow <- data.frame(date=date,beat=beat,exp=exp,reason=reason)
-      citExpAllDays <- rbind(citExpAllDays, newrow)
+      markExpAllDays <- rbind(markExpAllDays, newrow)
     }
   }
 }
 
-names(citExpAllDays) <- c("DATE","BEAT","EXP","REASON")
-citExpAllDaystest <- citExpAllDays
-citExpAllDaystest$EXP <- round(citExpAllDaystest$EXP, digits=2)
-citExpAllDaystest$DATE <- as.character(citExpAllDaystest$DATE)
-citExpAllDaystest$EXP <- as.character(citExpAllDaystest$EXP)
-citExpAllDaystest$BEAT <- as.character(citExpAllDaystest$BEAT)
-citExpAllDaystest$REASON <- as.character(citExpAllDaystest$REASON)
+names(markExpAllDays) <- c("DATE","BEAT","EXP","REASON")
+markExpAllDaystest <- markExpAllDays
+markExpAllDaystest$EXP <- round(markExpAllDaystest$EXP, digits=2)
+markExpAllDaystest$DATE <- as.character(markExpAllDaystest$DATE)
+markExpAllDaystest$EXP <- as.character(markExpAllDaystest$EXP)
+markExpAllDaystest$BEAT <- as.character(markExpAllDaystest$BEAT)
+markExpAllDaystest$REASON <- as.character(markExpAllDaystest$REASON)
 
 combined_feats_GT$DATEBEAT <- as.character(combined_feats_GT$DATEBEAT)
 combined_feats_GT$BEATNAME <- as.character(combined_feats_GT$BEATNAME)
@@ -236,16 +266,16 @@ combined_feats_GT$BEATTYPE <- as.character(combined_feats_GT$BEATTYPE)
 flog.info("Writing mark estimates data to table", name="quiet")
 
 queryValues <- list()
-for (r in 1:nrow(citExpAllDaystest)) {
-  queryValues[[r]] <- paste("('", citExpAllDaystest$DATE[r], "', '",
-                  citExpAllDaystest$BEAT[r], "', '",
-                  citExpAllDaystest$EXP[r], "', '",
-                  citExpAllDaystest$REASON[r], "'",
+for (r in 1:nrow(markExpAllDaystest)) {
+  queryValues[[r]] <- paste("('", markExpAllDaystest$DATE[r], "', '",
+                  markExpAllDaystest$BEAT[r], "', '",
+                  markExpAllDaystest$EXP[r], "', '",
+                  markExpAllDaystest$REASON[r], "'",
         ")",
       sep="")
 }
 
-write.table(citExpAllDaystest,
+write.table(markExpAllDaystest,
     file = paste(cwd, "logs",
         paste("citMarkEstimatesToday-",
         today,
