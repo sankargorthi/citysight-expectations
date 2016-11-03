@@ -294,7 +294,7 @@ for (q in 1:length(targets)) {
   writeHandle <- GetDBHandle(cfg)
 
   flog.info("Deleting mark estimates for yesterday %s", targets[[q]], name="quiet")
-  sqlQuery(writeHandle, paste("DELETE FROM MARKPREDICTIONCONVERTED WHERE DATE='", (today - 1), "'", sep=""))
+  sqlQuery(writeHandle, paste("DELETE FROM MARKPREDICTIONCONVERTED WHERE DATE='", today, "'", sep=""))
 
   insertQuery <- paste("INSERT INTO MARKPREDICTIONCONVERTED VALUES",
       paste(queryValues, collapse=", "),
