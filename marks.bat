@@ -1,5 +1,5 @@
 @echo off
-set source=devdenver
+set source=denver
 set targets=devdenver,stagingdenver,denver
 set cwd=C:\\Users\\Administrator\\Documents\\tools\\citysight-expectations
 
