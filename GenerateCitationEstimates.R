@@ -321,7 +321,7 @@ for (q in 1:length(targets)) {
   cfg <- BuildConfig(baseConfig, targets[[q]])
   writeHandle <- GetDBHandle(cfg)
 
-  flog.info("Deleting estimates for yesterday %s", targets[[q]], name="quiet")
+  flog.info("Deleting estimates for today %s", targets[[q]], name="quiet")
   sqlQuery(writeHandle, paste("DELETE FROM CITATIONESTIMATESCONVERTED WHERE DATE='", today, "'", sep=""))
 
   insertQuery <- paste("INSERT INTO CITATIONESTIMATESCONVERTED VALUES",
